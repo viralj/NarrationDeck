@@ -16,6 +16,19 @@ required.
 
 ## Quick Start (Phase 1)
 1) Create a virtual environment (optional).
+
+### Option A: venv
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### Option B: conda/miniconda
+```powershell
+conda create -n narrationdeck python=3.11
+conda activate narrationdeck
+```
+
 2) Install the package in editable mode:
 
 ```powershell
