@@ -1,12 +1,12 @@
 {
   "voices": [
     {
-      "label": "Peter - Confident, reliable, credible narrator (preferred)",
+      "label": "Peter - Confident, reliable, credible narrator",
       "voice_id": "ZthjuvLPty3kTMaNKVKb",
       "model_id": "eleven_flash_v2_5"
     },
     {
-      "label": "Adam - Deep English Story Voice (preferred 2)",
+      "label": "Adam - Deep English Story Voice",
       "voice_id": "6FiCmD8eY5VyjOdG5Zjk",
       "model_id": "eleven_flash_v2_5"
     },
