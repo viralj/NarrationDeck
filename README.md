@@ -8,9 +8,9 @@ Phase 3 adds a Resolve Free workflow (payload + script). Phase 4 adds Text+
 caption insertion (best effort) inside Resolve.
 
 ## Requirements
-- Windows 10/11
+- Windows/macOS/Linux
 - Python 3.10+
-- DaVinci Resolve (Free)
+- DaVinci Resolve (Free or Studio)
 
 Tkinter ships with standard Python on Windows, so no extra GUI dependencies are
 required.
@@ -56,6 +56,17 @@ python -m narrationdeck
 - `docs/resolve-free-workflow.md` - Resolve Free workflow (payload + script)
 
 ## Notes on Resolve Scripting
-Later phases will require the Resolve scripting API. If Resolve is installed,
-its scripting modules can be added to `PYTHONPATH` or copied into this repo.
-We will document the exact steps in Phase 2 when the integration begins.
+Resolve Free does not allow external scripting, so NarrationDeck uses a
+payload + in-Resolve script workflow. Studio can run external scripts.
+See `docs/resolve-free-workflow.md` for the Free-tier workflow.
+
+### Resolve Free vs Studio
+- **Free:** run `resolve_scripts/narrationdeck_build.py` from Resolve's Scripts menu.
+- **Studio:** external scripting is supported (future phase will wire the GUI
+  directly to Resolve).
+
+### Resolve Version Notes
+Resolve 20.x introduced changes in scripting behavior and may restrict external
+scripts to Studio only. If you are on an older version and external scripts work
+in Free, the GUI integration may still work, but this repo targets Free 20.x
+with the in-Resolve script workflow.
