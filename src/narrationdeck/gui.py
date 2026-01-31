@@ -3,24 +3,12 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import filedialog
 from typing import Iterable
+from datetime import datetime
 
 from .tts import generate_audio_and_srt
 from .config import get_api_key
-
-FRAME_RATES = ["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"]
-
-RESOLUTION_PRESETS = [
-    {"group": "Wide", "label": "8K UHD (7680x4320)", "width": 7680, "height": 4320},
-    {"group": "Wide", "label": "4K UHD (3840x2160)", "width": 3840, "height": 2160},
-    {"group": "Wide", "label": "2K (2560x1440)", "width": 2560, "height": 1440},
-    {"group": "Wide", "label": "1080p (1920x1080)", "width": 1920, "height": 1080},
-    {"group": "Wide", "label": "720p (1280x720)", "width": 1280, "height": 720},
-    {"group": "Shorts 9:16", "label": "8K (4320x7680)", "width": 4320, "height": 7680},
-    {"group": "Shorts 9:16", "label": "4K (2160x3840)", "width": 2160, "height": 3840},
-    {"group": "Shorts 9:16", "label": "2K (1440x2560)", "width": 1440, "height": 2560},
-    {"group": "Shorts 9:16", "label": "1080x1920", "width": 1080, "height": 1920},
-    {"group": "Shorts 9:16", "label": "720x1280", "width": 720, "height": 1280},
-]
+from .payload import build_resolve_payload, write_resolve_payload
+from .constants import FRAME_RATES, RESOLUTION_PRESETS
 
 
 class NarrationDeckGUI:
@@ -38,6 +26,11 @@ class NarrationDeckGUI:
         self.output_format = tk.StringVar(value="mp3")
         self.project_mode = tk.StringVar(value="create")
         self.allow_missing_anchors = tk.BooleanVar(value=False)
+        self.project_name = tk.StringVar(value=self._default_project_name())
+        self.timeline_name = tk.StringVar(value="NarrationDeck Timeline")
+        self.textplus_preset = tk.StringVar(value="NarrationDeck_TextPlus")
+
+        self.last_generation: dict | None = None
 
         if self.voices:
             self.voice_label.set(self.voices[0].get("label", ""))
@@ -85,6 +78,9 @@ class NarrationDeckGUI:
             frame, text="Use existing (coming soon)", variable=self.project_mode, value="existing", state="disabled"
         ).grid(row=0, column=2, sticky="w", padx=8, pady=6)
 
+        tk.Label(frame, text="Project Name").grid(row=0, column=3, sticky="w", padx=8, pady=6)
+        tk.Entry(frame, textvariable=self.project_name).grid(row=0, column=4, sticky="ew", padx=8, pady=6)
+
         tk.Label(frame, text="Resolution").grid(row=1, column=0, sticky="w", padx=8, pady=6)
         tk.OptionMenu(frame, self.resolution_label, *self._resolution_labels()).grid(
             row=1, column=1, columnspan=2, sticky="ew", padx=8, pady=6
@@ -93,6 +89,16 @@ class NarrationDeckGUI:
         tk.Label(frame, text="Frame Rate").grid(row=1, column=3, sticky="w", padx=8, pady=6)
         tk.OptionMenu(frame, self.frame_rate, *FRAME_RATES).grid(
             row=1, column=4, sticky="w", padx=8, pady=6
+        )
+
+        tk.Label(frame, text="Timeline Name").grid(row=2, column=0, sticky="w", padx=8, pady=6)
+        tk.Entry(frame, textvariable=self.timeline_name).grid(
+            row=2, column=1, sticky="ew", padx=8, pady=6
+        )
+
+        tk.Label(frame, text="Text+ Preset").grid(row=2, column=3, sticky="w", padx=8, pady=6)
+        tk.Entry(frame, textvariable=self.textplus_preset).grid(
+            row=2, column=4, sticky="ew", padx=8, pady=6
         )
 
         return frame
@@ -176,6 +182,13 @@ class NarrationDeckGUI:
             state="normal",
         ).grid(row=0, column=1, padx=6, pady=6)
 
+        tk.Button(
+            frame,
+            text="Export Resolve Payload",
+            command=self._on_export_payload_clicked,
+            state="normal",
+        ).grid(row=0, column=2, padx=6, pady=6)
+
         return frame
 
     def _log_frame(self) -> tk.LabelFrame:
@@ -233,6 +246,7 @@ class NarrationDeckGUI:
             self._log(f"Failed: {exc}")
             return
 
+        self.last_generation = result
         self._log(f"Audio saved: {result['audio_path']}")
         self._log(f"SRT saved: {result['srt_path']}")
         self._log(f"Timestamps saved: {result['timestamps_path']}")
@@ -245,6 +259,31 @@ class NarrationDeckGUI:
 
     def _on_build_clicked(self) -> None:
         self._log("Build Resolve Timeline clicked (not implemented yet).")
+
+    def _on_export_payload_clicked(self) -> None:
+        images_dir = self.images_dir.get().strip()
+        if not images_dir:
+            self._log("Please select an images folder before exporting payload.")
+            return
+
+        image_map_text = self.image_map_box.get("1.0", "end").strip()
+        payload = build_resolve_payload(
+            images_dir=images_dir,
+            resolution_label=self.resolution_label.get(),
+            frame_rate=self.frame_rate.get(),
+            project_mode=self.project_mode.get(),
+            project_name=self.project_name.get().strip(),
+            timeline_name=self.timeline_name.get().strip(),
+            textplus_preset=self.textplus_preset.get().strip(),
+            image_map_text=image_map_text,
+            last_generation=self.last_generation,
+            allow_missing_image_anchors=self.allow_missing_anchors.get(),
+        )
+
+        payload_path = write_resolve_payload(images_dir, payload)
+        self._log(f"Resolve payload saved: {payload_path}")
+        if not self.last_generation:
+            self._log("Note: No audio/SRT artifacts recorded yet. Generate audio first.")
 
     def _resolution_labels(self) -> list[str]:
         return [
@@ -268,3 +307,6 @@ class NarrationDeckGUI:
         self.log_box.insert("end", message + "\n")
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
+
+    def _default_project_name(self) -> str:
+        return f"NarrationDeck_{datetime.now().strftime('%Y%m%d_%H%M%S')}"

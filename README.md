@@ -52,6 +52,7 @@ python -m narrationdeck
 - `docs/README.md` - overview and workflow
 - `docs/textplus-preset.md` - Text+ preset setup (Fusion Titles default)
 - `docs/elevenlabs.md` - ElevenLabs configuration
+- `docs/resolve-free-workflow.md` - Resolve Free workflow (payload + script)
 
 ## Notes on Resolve Scripting
 Later phases will require the Resolve scripting API. If Resolve is installed,
