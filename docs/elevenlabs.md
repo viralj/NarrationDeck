@@ -23,5 +23,10 @@ When you click **Generate Audio + SRT**, NarrationDeck will save:
 
 These files are saved into the selected images folder.
 
+## Image Anchor Matching
+Anchor matching is strict by default; all `Image XX : snippet` entries must be
+found in the narration. Enable **Allow missing image anchors (lenient)** in the
+GUI to skip unmatched anchors and still generate output.
+
 ## Speed Control
 ElevenLabs `speed` is clamped to the supported range (0.7 to 1.2).

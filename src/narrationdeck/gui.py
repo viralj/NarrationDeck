@@ -37,6 +37,7 @@ class NarrationDeckGUI:
         self.resolution_label = tk.StringVar(value=self._resolution_labels()[1])
         self.output_format = tk.StringVar(value="mp3")
         self.project_mode = tk.StringVar(value="create")
+        self.allow_missing_anchors = tk.BooleanVar(value=False)
 
         if self.voices:
             self.voice_label.set(self.voices[0].get("label", ""))
@@ -130,6 +131,12 @@ class NarrationDeckGUI:
             row=2, column=1, sticky="e", padx=8, pady=6
         )
 
+        tk.Checkbutton(
+            frame,
+            text="Allow missing image anchors (lenient)",
+            variable=self.allow_missing_anchors,
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=8, pady=6)
+
         return frame
 
     def _narration_frame(self) -> tk.LabelFrame:
@@ -220,6 +227,7 @@ class NarrationDeckGUI:
                 output_format=self.output_format.get(),
                 api_key=api_key,
                 image_map_text=image_map_text,
+                allow_missing_image_anchors=self.allow_missing_anchors.get(),
             )
         except Exception as exc:
             self._log(f"Failed: {exc}")
@@ -230,6 +238,8 @@ class NarrationDeckGUI:
         self._log(f"Timestamps saved: {result['timestamps_path']}")
         if result.get("image_timeline_path"):
             self._log(f"Image timeline saved: {result['image_timeline_path']}")
+        if result.get("missing_images"):
+            self._log(f"Missing image anchors: {', '.join(result['missing_images'])}")
         if result.get("note"):
             self._log(result["note"])
 

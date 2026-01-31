@@ -29,3 +29,8 @@ captions stay hidden outside spoken segments.
 
 In Phase 2, the mapping is resolved against ElevenLabs timestamps and saved as
 `*_image_timeline.json`.
+
+### Strict vs Lenient Anchors
+By default, NarrationDeck requires every `Image XX : snippet` to match the
+generated timestamps. You can enable a lenient mode in the GUI to allow missing
+anchors; any unmatched images will be listed in the output log and JSON.

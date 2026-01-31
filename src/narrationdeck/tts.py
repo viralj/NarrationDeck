@@ -18,6 +18,7 @@ def generate_audio_and_srt(
     output_format: str,
     api_key: str,
     image_map_text: str | None = None,
+    allow_missing_image_anchors: bool = False,
 ) -> dict:
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir)
@@ -75,13 +76,19 @@ def generate_audio_and_srt(
     timestamps_path.write_text(json.dumps(timestamps_payload, indent=2), encoding="utf-8")
 
     image_segments = []
+    missing_images: list[str] = []
     if image_map_text:
         anchors = parse_image_anchors(image_map_text)
         if anchors:
-            image_segments = build_image_segments(anchors=anchors, words=words)
+            image_segments = build_image_segments(
+                anchors=anchors, words=words, allow_missing=allow_missing_image_anchors
+            )
+            matched_ids = {segment.image_id for segment in image_segments}
+            missing_images = [anchor.image_id for anchor in anchors if anchor.image_id not in matched_ids]
             image_payload = {
                 "anchors": [anchor.__dict__ for anchor in anchors],
                 "segments": [segment.__dict__ for segment in image_segments],
+                "missing": missing_images,
             }
             image_timeline_path.write_text(json.dumps(image_payload, indent=2), encoding="utf-8")
 
@@ -90,5 +97,6 @@ def generate_audio_and_srt(
         "srt_path": str(srt_path),
         "timestamps_path": str(timestamps_path),
         "image_timeline_path": str(image_timeline_path) if image_segments else None,
+        "missing_images": missing_images,
         "note": " ".join(notes).strip() if notes else None,
     }

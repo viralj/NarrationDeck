@@ -44,6 +44,7 @@ def build_image_segments(
     *,
     anchors: list[ImageAnchor],
     words: list[WordTiming],
+    allow_missing: bool = False,
 ) -> list[ImageSegment]:
     if not anchors:
         return []
@@ -65,7 +66,7 @@ def build_image_segments(
         start_time = words[match_index].start
         start_times.append((anchor, match_index, start_time))
 
-    if missing:
+    if missing and not allow_missing:
         missing_ids = ", ".join(missing)
         raise ValueError(f"Could not match snippet for images: {missing_ids}")
 
