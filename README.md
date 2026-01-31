@@ -3,8 +3,8 @@
 Automate DaVinci Resolve (Free) projects from narration text, images, and audio.
 
 This repo is organized in phases. Phase 1 provides a minimal Tkinter GUI and
-project scaffolding only. Later phases add ElevenLabs TTS, Resolve scripting,
-timeline assembly, and captions.
+project scaffolding. Phase 2 adds ElevenLabs TTS (audio + SRT generation).
+Later phases add Resolve scripting, timeline assembly, and captions.
 
 ## Requirements
 - Windows 10/11

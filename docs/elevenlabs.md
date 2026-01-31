@@ -13,3 +13,14 @@ Each voice entry includes:
 - `label` (human-friendly name)
 - `voice_id` (ElevenLabs voice ID)
 - `model_id` (ElevenLabs model)
+
+## Output Files
+When you click **Generate Audio + SRT**, NarrationDeck will save:
+- `narration_YYYYMMDD_HHMMSS.mp3`
+- `narration_YYYYMMDD_HHMMSS.srt`
+- `narration_YYYYMMDD_HHMMSS_timestamps.json`
+
+These files are saved into the selected images folder.
+
+## Speed Control
+ElevenLabs `speed` is clamped to the supported range (0.7 to 1.2).

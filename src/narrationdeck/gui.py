@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import filedialog
 from typing import Iterable
 
+from .tts import generate_audio_and_srt
+from .config import get_api_key
 
 FRAME_RATES = ["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"]
 
@@ -108,7 +110,7 @@ class NarrationDeckGUI:
 
         tk.Label(frame, text="Speed (x)").grid(row=1, column=2, sticky="w", padx=8, pady=6)
         tk.Scale(
-            frame, variable=self.speed, from_=0.5, to=2.0, resolution=0.05, orient="horizontal", length=160
+            frame, variable=self.speed, from_=0.7, to=1.2, resolution=0.05, orient="horizontal", length=160
         ).grid(row=1, column=3, sticky="w", padx=8, pady=6)
 
         tk.Label(frame, text="Volume (%)").grid(row=2, column=2, sticky="w", padx=8, pady=6)
@@ -141,7 +143,7 @@ class NarrationDeckGUI:
 
         tk.Button(
             frame,
-            text="Generate Audio + SRT (coming soon)",
+            text="Generate Audio + SRT",
             command=self._on_generate_clicked,
             state="normal",
         ).grid(row=0, column=0, padx=6, pady=6)
@@ -171,8 +173,47 @@ class NarrationDeckGUI:
             self._log(f"Selected folder: {path}")
 
     def _on_generate_clicked(self) -> None:
-        self._log("Generate Audio + SRT clicked (not implemented yet).")
-        self._log(f"Voice: {self.voice_label.get()} | Speed: {self.speed.get():.2f} | Volume: {self.volume.get():.0f}%")
+        images_dir = self.images_dir.get().strip()
+        if not images_dir:
+            self._log("Please select an images folder first.")
+            return
+
+        narration_text = self.narration_box.get("1.0", "end").strip()
+        if not narration_text:
+            self._log("Please paste narration text before generating.")
+            return
+
+        voice = self._selected_voice()
+        if not voice:
+            self._log("Selected voice not found in voices.json.")
+            return
+
+        api_key = get_api_key()
+        if not api_key:
+            self._log("Missing ELEVENLABS_API_KEY in .env or environment.")
+            return
+
+        self._log("Generating audio + SRT via ElevenLabs...")
+        self._log(f"Voice: {voice.get('label', 'Unknown')} | Speed: {self.speed.get():.2f} | Volume: {self.volume.get():.0f}%")
+        self._log("Note: Volume is reserved for Resolve clip gain in later phases.")
+        try:
+            result = generate_audio_and_srt(
+                output_dir=images_dir,
+                text=narration_text,
+                voice=voice,
+                speed=self.speed.get(),
+                output_format=self.output_format.get(),
+                api_key=api_key,
+            )
+        except Exception as exc:
+            self._log(f"Failed: {exc}")
+            return
+
+        self._log(f"Audio saved: {result['audio_path']}")
+        self._log(f"SRT saved: {result['srt_path']}")
+        self._log(f"Timestamps saved: {result['timestamps_path']}")
+        if result.get("note"):
+            self._log(result["note"])
 
     def _on_build_clicked(self) -> None:
         self._log("Build Resolve Timeline clicked (not implemented yet).")
@@ -186,6 +227,13 @@ class NarrationDeckGUI:
     def _voice_labels(self) -> list[str]:
         labels = [voice.get("label", "Unnamed") for voice in self.voices]
         return labels or ["No voices found"]
+
+    def _selected_voice(self) -> dict | None:
+        selected = self.voice_label.get()
+        for voice in self.voices:
+            if voice.get("label") == selected:
+                return voice
+        return None
 
     def _log(self, message: str) -> None:
         self.log_box.configure(state="normal")
