@@ -26,3 +26,6 @@ Image 02 : next words of the segment
 Each image starts at the first matching SRT segment and ends at the next image
 start. This allows an image to stay on screen during narration pauses while
 captions stay hidden outside spoken segments.
+
+In Phase 2, the mapping is resolved against ElevenLabs timestamps and saved as
+`*_image_timeline.json`.

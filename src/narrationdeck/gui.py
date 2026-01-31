@@ -57,15 +57,19 @@ class NarrationDeckGUI:
         self._narration_frame().grid(
             row=3, column=0, columnspan=4, sticky="nsew", padx=12, pady=(10, 6)
         )
-        self._actions_frame().grid(row=4, column=0, columnspan=4, sticky="ew", padx=12)
-        self._log_frame().grid(row=5, column=0, columnspan=4, sticky="nsew", padx=12, pady=(6, 12))
+        self._image_map_frame().grid(
+            row=4, column=0, columnspan=4, sticky="nsew", padx=12, pady=(0, 6)
+        )
+        self._actions_frame().grid(row=5, column=0, columnspan=4, sticky="ew", padx=12)
+        self._log_frame().grid(row=6, column=0, columnspan=4, sticky="nsew", padx=12, pady=(6, 12))
 
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_columnconfigure(1, weight=1)
         self.root.grid_columnconfigure(2, weight=1)
         self.root.grid_columnconfigure(3, weight=1)
         self.root.grid_rowconfigure(3, weight=1)
-        self.root.grid_rowconfigure(5, weight=1)
+        self.root.grid_rowconfigure(4, weight=1)
+        self.root.grid_rowconfigure(6, weight=1)
 
     def _project_settings_frame(self) -> tk.LabelFrame:
         frame = tk.LabelFrame(self.root, text="Project Settings (Phase 1 Placeholder)")
@@ -138,6 +142,16 @@ class NarrationDeckGUI:
 
         return frame
 
+    def _image_map_frame(self) -> tk.LabelFrame:
+        frame = tk.LabelFrame(self.root, text="Image Anchors (optional)")
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(0, weight=1)
+
+        self.image_map_box = tk.Text(frame, height=6, wrap="word")
+        self.image_map_box.insert("end", "Image 01 : first words of the segment\n")
+        self.image_map_box.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        return frame
+
     def _actions_frame(self) -> tk.Frame:
         frame = tk.Frame(self.root)
 
@@ -197,6 +211,7 @@ class NarrationDeckGUI:
         self._log(f"Voice: {voice.get('label', 'Unknown')} | Speed: {self.speed.get():.2f} | Volume: {self.volume.get():.0f}%")
         self._log("Note: Volume is reserved for Resolve clip gain in later phases.")
         try:
+            image_map_text = self.image_map_box.get("1.0", "end").strip()
             result = generate_audio_and_srt(
                 output_dir=images_dir,
                 text=narration_text,
@@ -204,6 +219,7 @@ class NarrationDeckGUI:
                 speed=self.speed.get(),
                 output_format=self.output_format.get(),
                 api_key=api_key,
+                image_map_text=image_map_text,
             )
         except Exception as exc:
             self._log(f"Failed: {exc}")
@@ -212,6 +228,8 @@ class NarrationDeckGUI:
         self._log(f"Audio saved: {result['audio_path']}")
         self._log(f"SRT saved: {result['srt_path']}")
         self._log(f"Timestamps saved: {result['timestamps_path']}")
+        if result.get("image_timeline_path"):
+            self._log(f"Image timeline saved: {result['image_timeline_path']}")
         if result.get("note"):
             self._log(result["note"])
 

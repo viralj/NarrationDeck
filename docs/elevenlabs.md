@@ -19,6 +19,7 @@ When you click **Generate Audio + SRT**, NarrationDeck will save:
 - `narration_YYYYMMDD_HHMMSS.mp3`
 - `narration_YYYYMMDD_HHMMSS.srt`
 - `narration_YYYYMMDD_HHMMSS_timestamps.json`
+- `narration_YYYYMMDD_HHMMSS_image_timeline.json` (if image anchors provided)
 
 These files are saved into the selected images folder.
 

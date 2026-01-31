@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .elevenlabs import synthesize_with_timestamps
 from .srt import alignment_to_words, words_to_captions, captions_to_srt
+from .mapping import parse_image_anchors, build_image_segments
 
 
 def generate_audio_and_srt(
@@ -16,6 +17,7 @@ def generate_audio_and_srt(
     speed: float,
     output_format: str,
     api_key: str,
+    image_map_text: str | None = None,
 ) -> dict:
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir)
@@ -49,10 +51,12 @@ def generate_audio_and_srt(
     audio_filename = f"narration_{run_id}.mp3"
     srt_filename = f"narration_{run_id}.srt"
     timestamps_filename = f"narration_{run_id}_timestamps.json"
+    image_timeline_filename = f"narration_{run_id}_image_timeline.json"
 
     audio_path = output_path / audio_filename
     srt_path = output_path / srt_filename
     timestamps_path = output_path / timestamps_filename
+    image_timeline_path = output_path / image_timeline_filename
 
     audio_path.write_bytes(result["audio_bytes"])
 
@@ -70,9 +74,21 @@ def generate_audio_and_srt(
     }
     timestamps_path.write_text(json.dumps(timestamps_payload, indent=2), encoding="utf-8")
 
+    image_segments = []
+    if image_map_text:
+        anchors = parse_image_anchors(image_map_text)
+        if anchors:
+            image_segments = build_image_segments(anchors=anchors, words=words)
+            image_payload = {
+                "anchors": [anchor.__dict__ for anchor in anchors],
+                "segments": [segment.__dict__ for segment in image_segments],
+            }
+            image_timeline_path.write_text(json.dumps(image_payload, indent=2), encoding="utf-8")
+
     return {
         "audio_path": str(audio_path),
         "srt_path": str(srt_path),
         "timestamps_path": str(timestamps_path),
+        "image_timeline_path": str(image_timeline_path) if image_segments else None,
         "note": " ".join(notes).strip() if notes else None,
     }
