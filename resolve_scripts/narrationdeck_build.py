@@ -77,6 +77,50 @@ def _import_media_item(media_pool, path: str):
     return None
 
 
+def _seconds_to_timecode(seconds: float, frame_rate: float) -> str:
+    if seconds < 0:
+        seconds = 0.0
+    total_frames = int(round(seconds * frame_rate))
+    frames = total_frames % int(round(frame_rate))
+    total_seconds = total_frames // int(round(frame_rate))
+    secs = total_seconds % 60
+    total_minutes = total_seconds // 60
+    mins = total_minutes % 60
+    hours = total_minutes // 60
+    return f"{hours:02d}:{mins:02d}:{secs:02d}:{frames:02d}"
+
+
+def _set_title_text(title_item, text: str) -> bool:
+    try:
+        comp = title_item.GetFusionCompByIndex(1)
+    except Exception:
+        comp = None
+    if not comp:
+        return False
+
+    try:
+        tool_list = comp.GetToolList(False)
+    except Exception:
+        return False
+
+    for tool in tool_list.values():
+        try:
+            tool.SetInput("StyledText", text)
+            return True
+        except Exception:
+            continue
+    return False
+
+
+def _set_title_duration(title_item, duration_frames: int) -> bool:
+    if duration_frames <= 0:
+        return False
+    try:
+        return bool(title_item.SetProperty("Duration", duration_frames))
+    except Exception:
+        return False
+
+
 def main():
     dvr = _try_import_resolve()
     if not dvr:
@@ -197,6 +241,37 @@ def main():
                 "trackIndex": 1,
             }
             media_pool.AppendToTimeline([clip_info])
+
+    timestamps_path = artifacts.get("timestamps_path")
+    textplus_name = project_info.get("textplus_preset") or "Text+"
+    if timestamps_path and Path(timestamps_path).exists():
+        try:
+            with open(timestamps_path, "r", encoding="utf-8") as handle:
+                timestamps_data = json.load(handle)
+            captions = timestamps_data.get("captions", [])
+        except Exception:
+            captions = []
+
+        if captions:
+            print(f"Adding {len(captions)} Text+ captions using preset '{textplus_name}'...")
+            for caption in captions:
+                start = float(caption.get("start", 0))
+                end = float(caption.get("end", start))
+                duration_frames = max(1, int(round((end - start) * frame_rate)))
+                timecode = _seconds_to_timecode(start, frame_rate)
+                if hasattr(project, "SetCurrentTimecode"):
+                    project.SetCurrentTimecode(timecode)
+
+                title_item = timeline.InsertFusionTitleIntoTimeline(textplus_name)
+                if not title_item:
+                    print(f"Failed to insert Text+ at {timecode}")
+                    continue
+
+                if not _set_title_duration(title_item, duration_frames):
+                    print("Warning: could not set title duration; using default.")
+
+                if not _set_title_text(title_item, caption.get("text", "")):
+                    print("Warning: could not set Text+ content for a caption.")
 
     print("NarrationDeck import complete.")
 

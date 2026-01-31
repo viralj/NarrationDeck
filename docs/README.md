@@ -12,7 +12,7 @@ NarrationDeck generates a Resolve timeline from:
 3) Choose a voice and TTS settings (speed/volume).
 4) Generate audio + SRT.
 5) Export a Resolve payload JSON.
-6) Run the Resolve script to build a project + timeline.
+6) Run the Resolve script to build a project + timeline (images, audio, Text+).
 
 ## Image Timing Strategy
 The planned flow is:

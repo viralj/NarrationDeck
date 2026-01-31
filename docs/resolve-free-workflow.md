@@ -34,8 +34,10 @@ The script will:
 - Create a timeline.
 - Import images + audio.
 - Place images according to the image timeline JSON.
+- Insert Text+ captions using ElevenLabs timestamps (best effort).
 
 ## Notes
-- Captions (Text+) are added in a later phase.
+- Text+ insertion depends on the preset name and may fall back to default
+  duration if the API refuses to set clip duration.
 - If a still image duration looks wrong, adjust the Resolve default still
   duration or report the issue so we can refine the placement logic.
