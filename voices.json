@@ -1,0 +1,34 @@
+{
+  "voices": [
+    {
+      "label": "Peter - Confident, reliable, credible narrator (preferred)",
+      "voice_id": "ZthjuvLPty3kTMaNKVKb",
+      "model_id": "eleven_flash_v2_5"
+    },
+    {
+      "label": "Adam - Deep English Story Voice (preferred 2)",
+      "voice_id": "6FiCmD8eY5VyjOdG5Zjk",
+      "model_id": "eleven_flash_v2_5"
+    },
+    {
+      "label": "Harrison Gale - Smooth, Rich and Deep",
+      "voice_id": "fCxG8OHm4STbIsWe4aT9",
+      "model_id": "eleven_flash_v2_5"
+    },
+    {
+      "label": "Bill - Wise, Mature, Balanced",
+      "voice_id": "pqHfZKP75CvOlQylNhV4",
+      "model_id": "eleven_flash_v2_5"
+    },
+    {
+      "label": "George - Warm, Captivating Storyteller",
+      "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+      "model_id": "eleven_flash_v2_5"
+    },
+    {
+      "label": "Brian - Deep, Resonant and Comforting",
+      "voice_id": "nPczCjzI2devNBz1zQrb",
+      "model_id": "eleven_flash_v2_5"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.whl
+dist/
+build/
+
+# Environments
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Editors/OS
+.vscode/
+.idea/
+*.swp
+*.tmp
+Thumbs.db
+Desktop.ini
+
+# Local outputs
+logs/
+output/
+outputs/
+runs/
+temp/
