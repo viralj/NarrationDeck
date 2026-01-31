@@ -99,16 +99,30 @@ def _set_title_text(title_item, text: str) -> bool:
         return False
 
     try:
+        text_tools = comp.GetToolList(False, "TextPlus")
+    except Exception:
+        text_tools = None
+
+    if text_tools:
+        for tool in text_tools.values():
+            try:
+                tool.SetInput("StyledText", text)
+                return True
+            except Exception:
+                continue
+
+    try:
         tool_list = comp.GetToolList(False)
     except Exception:
-        return False
+        tool_list = None
 
-    for tool in tool_list.values():
-        try:
-            tool.SetInput("StyledText", text)
-            return True
-        except Exception:
-            continue
+    if tool_list:
+        for tool in tool_list.values():
+            try:
+                tool.SetInput("StyledText", text)
+                return True
+            except Exception:
+                continue
     return False
 
 
@@ -228,6 +242,8 @@ def main():
         }
         media_pool.AppendToTimeline([clip_info])
 
+    print("Note: Crossfades between images are not currently supported by the Resolve scripting API.")
+
     audio_path = artifacts.get("audio_path")
     if audio_path and Path(audio_path).exists():
         audio_item = _import_media_item(media_pool, audio_path)
@@ -272,6 +288,7 @@ def main():
 
                 if not _set_title_text(title_item, caption.get("text", "")):
                     print("Warning: could not set Text+ content for a caption.")
+                print("Note: Text+ fade in/out is not currently supported by the scripting API.")
 
     print("NarrationDeck import complete.")
 

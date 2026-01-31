@@ -43,6 +43,12 @@ pip install -e .
 python -m narrationdeck
 ```
 
+## Quick Flow (Resolve Free)
+1) Select your images folder and paste narration text.
+2) Generate audio + SRT.
+3) Export Resolve payload JSON.
+4) Run `resolve_scripts/narrationdeck_build.py` from Resolve **Workspace → Scripts**.
+
 ## Project Structure
 - `src/narrationdeck/` - application code
 - `voices.json` - selectable voices for ElevenLabs

@@ -36,6 +36,11 @@ The script will:
 - Place images according to the image timeline JSON.
 - Insert Text+ captions using ElevenLabs timestamps (best effort).
 
+## Transitions and Fades
+Crossfades between images and Text+ fade in/out are not exposed in the Resolve
+scripting API for the Free workflow, so they are not automated yet. You can
+apply the default transition manually after import.
+
 ## Notes
 - Text+ insertion depends on the preset name and may fall back to default
   duration if the API refuses to set clip duration.
