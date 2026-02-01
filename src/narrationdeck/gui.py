@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import tkinter as tk
+import re
+from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Iterable
 from datetime import datetime
@@ -260,6 +262,7 @@ class NarrationDeckGUI:
         if not images_dir:
             self._log("Please select an images folder first.")
             return
+        self._validate_images(images_dir)
 
         narration_text = self.narration_box.get("1.0", "end").strip()
         if not narration_text:
@@ -314,6 +317,7 @@ class NarrationDeckGUI:
         if not images_dir:
             self._log("Please select an images folder before exporting payload.")
             return
+        self._validate_images(images_dir)
 
         image_map_text = self.image_map_box.get("1.0", "end").strip()
         payload = build_resolve_payload(
@@ -371,3 +375,34 @@ class NarrationDeckGUI:
             "- Each image starts at the first matched word and ends at the next image start."
         )
         messagebox.showinfo("Image Anchors Help", message)
+
+    def _validate_images(self, images_dir: str) -> None:
+        folder = Path(images_dir)
+        if not folder.exists():
+            self._log("Images folder does not exist.")
+            return
+
+        pattern = re.compile(r"^(\d+)\.(png|jpg|jpeg)$", re.IGNORECASE)
+        image_numbers = []
+        for entry in folder.iterdir():
+            if not entry.is_file():
+                continue
+            match = pattern.match(entry.name)
+            if match:
+                image_numbers.append(int(match.group(1)))
+
+        if not image_numbers:
+            self._log("No numbered images found (expected like 01.png, 02.jpg).")
+            return
+
+        image_numbers.sort()
+        missing = []
+        for num in range(image_numbers[0], image_numbers[-1] + 1):
+            if num not in image_numbers:
+                missing.append(num)
+
+        if missing:
+            missing_str = ", ".join(f"{num:02d}" for num in missing)
+            self._log(f"Warning: missing image numbers: {missing_str}")
+        else:
+            self._log(f"Found {len(image_numbers)} numbered images. Sequence looks complete.")
