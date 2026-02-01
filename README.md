@@ -60,6 +60,7 @@ python -m narrationdeck
 - `docs/textplus-preset.md` - Text+ preset setup (Fusion Titles default)
 - `docs/elevenlabs.md` - ElevenLabs configuration
 - `docs/resolve-free-workflow.md` - Resolve Free workflow (payload + script)
+- `docs/roadmap.md` - backlog (Free vs Studio items, recommendations)
 
 ## Notes on Resolve Scripting
 Resolve Free does not allow external scripting, so NarrationDeck uses a
