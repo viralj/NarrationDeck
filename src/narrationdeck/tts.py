@@ -97,6 +97,7 @@ def generate_audio_and_srt(
         "srt_path": str(srt_path),
         "timestamps_path": str(timestamps_path),
         "image_timeline_path": str(image_timeline_path) if image_segments else None,
+        "image_segments": [segment.__dict__ for segment in image_segments],
         "missing_images": missing_images,
         "note": " ".join(notes).strip() if notes else None,
     }

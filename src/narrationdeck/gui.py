@@ -306,6 +306,14 @@ class NarrationDeckGUI:
             self._log(f"Image timeline saved: {result['image_timeline_path']}")
         if result.get("missing_images"):
             self._log(f"Missing image anchors: {', '.join(result['missing_images'])}")
+        if result.get("image_segments"):
+            self._log("Image anchor preview:")
+            for segment in result["image_segments"]:
+                start = segment.get("start", 0.0)
+                end = segment.get("end", 0.0)
+                image_id = segment.get("image_id", "??")
+                snippet = segment.get("snippet", "")
+                self._log(f"  {image_id}: {start:.2f}s → {end:.2f}s | {snippet}")
         if result.get("note"):
             self._log(result["note"])
 
