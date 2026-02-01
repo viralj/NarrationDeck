@@ -50,7 +50,7 @@ class NarrationDeckGUI:
             self.voice_label.set("No voices found")
 
     def render(self) -> None:
-        self.root.geometry("900x910")
+        self.root.geometry("900x1010")
         self.root.minsize(820, 830)
         self.root.configure(bg="#f5f6f8")
 
