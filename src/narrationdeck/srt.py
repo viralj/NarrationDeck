@@ -52,10 +52,11 @@ def alignment_to_words(alignment: dict) -> list[WordTiming]:
 def words_to_captions(
     words: list[WordTiming],
     *,
-    max_caption_chars: int = 80,
-    max_caption_duration: float = 4.0,
+    max_caption_chars: int | None = 80,
+    max_caption_duration: float | None = 4.0,
     min_sentence_duration: float = 1.2,
-    max_line_chars: int = 42,
+    max_line_chars: int | None = 42,
+    max_lines: int | None = 2,
 ) -> list[Caption]:
     captions: list[Caption] = []
     current_words: list[WordTiming] = []
@@ -71,8 +72,11 @@ def words_to_captions(
         duration = word.end - start_time
         sentence_end = word.text.endswith((".", "!", "?", "…"))
 
-        if current_words and (proposed_len > max_caption_chars or duration > max_caption_duration):
-            captions.append(_finalize_caption(current_words, start_time, max_line_chars))
+        if current_words and (
+            (max_caption_chars is not None and proposed_len > max_caption_chars)
+            or (max_caption_duration is not None and duration > max_caption_duration)
+        ):
+            captions.append(_finalize_caption(current_words, start_time, max_line_chars, max_lines))
             current_words = [word]
             current_len = len(word.text)
             start_time = word.start
@@ -82,12 +86,12 @@ def words_to_captions(
         current_len = proposed_len
 
         if sentence_end and duration >= min_sentence_duration:
-            captions.append(_finalize_caption(current_words, start_time, max_line_chars))
+            captions.append(_finalize_caption(current_words, start_time, max_line_chars, max_lines))
             current_words = []
             current_len = 0
 
     if current_words:
-        captions.append(_finalize_caption(current_words, start_time, max_line_chars))
+        captions.append(_finalize_caption(current_words, start_time, max_line_chars, max_lines))
 
     return captions
 
@@ -102,13 +106,22 @@ def captions_to_srt(captions: list[Caption]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _finalize_caption(words: list[WordTiming], start_time: float, max_line_chars: int) -> Caption:
+def _finalize_caption(
+    words: list[WordTiming],
+    start_time: float,
+    max_line_chars: int | None,
+    max_lines: int | None,
+) -> Caption:
     end_time = words[-1].end
-    text = _wrap_lines(" ".join(word.text for word in words), max_line_chars=max_line_chars)
+    text = _wrap_lines(
+        " ".join(word.text for word in words),
+        max_line_chars=max_line_chars,
+        max_lines=max_lines,
+    )
     return Caption(start=start_time, end=end_time, text=text)
 
 
-def _wrap_lines(text: str, max_line_chars: int = 42) -> str:
+def _wrap_lines(text: str, max_line_chars: int | None = 42, max_lines: int | None = 2) -> str:
     words = text.split()
     if not words:
         return ""
@@ -117,7 +130,7 @@ def _wrap_lines(text: str, max_line_chars: int = 42) -> str:
     current_len = 0
     for word in words:
         proposed_len = current_len + (1 if current else 0) + len(word)
-        if current and proposed_len > max_line_chars:
+        if max_line_chars is not None and current and proposed_len > max_line_chars:
             lines.append(" ".join(current))
             current = [word]
             current_len = len(word)
@@ -126,7 +139,9 @@ def _wrap_lines(text: str, max_line_chars: int = 42) -> str:
             current_len = proposed_len
     if current:
         lines.append(" ".join(current))
-    return "\n".join(lines[:2])
+    if max_lines is None:
+        return "\n".join(lines)
+    return "\n".join(lines[:max_lines])
 
 
 def _format_time(seconds: float) -> str:

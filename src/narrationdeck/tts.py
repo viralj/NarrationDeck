@@ -21,9 +21,9 @@ def generate_audio_and_srt(
     output_prefix: str = "narration",
     image_map_text: str | None = None,
     allow_missing_image_anchors: bool = False,
-    caption_max_chars: int = 80,
-    caption_max_duration: float = 4.0,
-    caption_line_chars: int = 42,
+    caption_max_chars: int | None = 80,
+    caption_max_duration: float | None = 4.0,
+    caption_line_chars: int | None = 42,
 ) -> dict:
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir)
@@ -70,11 +70,17 @@ def generate_audio_and_srt(
     audio_path.write_bytes(result["audio_bytes"])
 
     words = alignment_to_words(result["alignment"])
+    use_limits = (
+        caption_max_chars is not None
+        and caption_max_duration is not None
+        and caption_line_chars is not None
+    )
     captions = words_to_captions(
         words,
-        max_caption_chars=caption_max_chars,
-        max_caption_duration=caption_max_duration,
-        max_line_chars=caption_line_chars,
+        max_caption_chars=caption_max_chars if use_limits else None,
+        max_caption_duration=caption_max_duration if use_limits else None,
+        max_line_chars=caption_line_chars if caption_line_chars is not None else 42,
+        max_lines=2 if use_limits else None,
     )
     srt_text = captions_to_srt(captions)
     srt_path.write_text(srt_text, encoding="utf-8")

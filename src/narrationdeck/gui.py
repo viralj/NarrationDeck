@@ -37,6 +37,7 @@ class NarrationDeckGUI:
         self.caption_max_chars = tk.IntVar(value=80)
         self.caption_max_duration = tk.DoubleVar(value=4.0)
         self.caption_line_chars = tk.IntVar(value=42)
+        self.caption_limits_enabled = tk.BooleanVar(value=False)
         self.use_existing = tk.BooleanVar(value=False)
         self.existing_audio = tk.StringVar(value="")
         self.existing_timestamps = tk.StringVar(value="")
@@ -252,23 +253,34 @@ class NarrationDeckGUI:
         tk.Label(frame, text="Caption Max Chars", bg="#f5f6f8").grid(
             row=3, column=3, sticky="w", padx=8, pady=6
         )
-        tk.Spinbox(frame, from_=40, to=120, increment=5, textvariable=self.caption_max_chars, width=8).grid(
-            row=3, column=4, sticky="w", padx=8, pady=6
+        self.caption_max_chars_spin = tk.Spinbox(
+            frame, from_=40, to=120, increment=5, textvariable=self.caption_max_chars, width=8, state="disabled"
         )
+        self.caption_max_chars_spin.grid(row=3, column=4, sticky="w", padx=8, pady=6)
 
         tk.Label(frame, text="Caption Max Duration (s)", bg="#f5f6f8").grid(
             row=4, column=3, sticky="w", padx=8, pady=6
         )
-        tk.Spinbox(frame, from_=1.0, to=8.0, increment=0.5, textvariable=self.caption_max_duration, width=8).grid(
-            row=4, column=4, sticky="w", padx=8, pady=6
+        self.caption_max_duration_spin = tk.Spinbox(
+            frame, from_=1.0, to=8.0, increment=0.5, textvariable=self.caption_max_duration, width=8, state="disabled"
         )
+        self.caption_max_duration_spin.grid(row=4, column=4, sticky="w", padx=8, pady=6)
 
         tk.Label(frame, text="Caption Line Width", bg="#f5f6f8").grid(
             row=5, column=3, sticky="w", padx=8, pady=6
         )
-        tk.Spinbox(frame, from_=24, to=60, increment=2, textvariable=self.caption_line_chars, width=8).grid(
-            row=5, column=4, sticky="w", padx=8, pady=6
+        self.caption_line_chars_spin = tk.Spinbox(
+            frame, from_=24, to=60, increment=2, textvariable=self.caption_line_chars, width=8, state="disabled"
         )
+        self.caption_line_chars_spin.grid(row=5, column=4, sticky="w", padx=8, pady=6)
+
+        tk.Checkbutton(
+            frame,
+            text="Enable caption chunking limits",
+            variable=self.caption_limits_enabled,
+            bg="#f5f6f8",
+            command=self._toggle_caption_limits,
+        ).grid(row=6, column=3, columnspan=2, sticky="w", padx=8, pady=6)
 
         return frame
 
@@ -413,9 +425,9 @@ class NarrationDeckGUI:
                     output_prefix=self.output_prefix.get().strip() or "narration",
                     image_map_text=image_map_text,
                     allow_missing_image_anchors=self.allow_missing_anchors.get(),
-                    caption_max_chars=self.caption_max_chars.get(),
-                    caption_max_duration=self.caption_max_duration.get(),
-                    caption_line_chars=self.caption_line_chars.get(),
+                    caption_max_chars=self.caption_max_chars.get() if self.caption_limits_enabled.get() else None,
+                    caption_max_duration=self.caption_max_duration.get() if self.caption_limits_enabled.get() else None,
+                    caption_line_chars=self.caption_line_chars.get() if self.caption_limits_enabled.get() else None,
                 )
             except Exception as exc:
                 self._log(f"Failed: {exc}")
@@ -522,6 +534,12 @@ class NarrationDeckGUI:
             "- Each image starts at the first matched word and ends at the next image start."
         )
         messagebox.showinfo("Image Anchors Help", message)
+
+    def _toggle_caption_limits(self) -> None:
+        state = "normal" if self.caption_limits_enabled.get() else "disabled"
+        self.caption_max_chars_spin.config(state=state)
+        self.caption_max_duration_spin.config(state=state)
+        self.caption_line_chars_spin.config(state=state)
 
     def _use_existing_artifacts(self, images_dir: str, image_map_text: str) -> dict | None:
         audio_path = self.existing_audio.get().strip()

@@ -37,6 +37,9 @@ You can tune caption chunking in the GUI:
 - Max caption duration (seconds)
 - Line width (characters per line)
 
+Disable **Enable caption chunking limits** to let captions flow with the audio
+timestamps without enforcing max duration/length.
+
 ## Using Existing Artifacts
 If you already generated audio + timestamps, enable **Use existing artifacts**
 and select:
