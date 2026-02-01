@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from typing import Iterable
 from datetime import datetime
 
@@ -38,8 +38,8 @@ class NarrationDeckGUI:
             self.voice_label.set("No voices found")
 
     def render(self) -> None:
-        self.root.geometry("900x700")
-        self.root.minsize(820, 640)
+        self.root.geometry("900x910")
+        self.root.minsize(820, 830)
         self.root.configure(bg="#f5f6f8")
 
         title = tk.Label(
@@ -206,9 +206,12 @@ class NarrationDeckGUI:
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
 
+        help_button = tk.Button(frame, text="Help", command=self._show_image_anchor_help)
+        help_button.grid(row=0, column=1, sticky="ne", padx=8, pady=8)
+
         self.image_map_box = tk.Text(frame, height=6, wrap="word", bg="white")
         self.image_map_box.insert("end", "Image 01 : first words of the segment\n")
-        self.image_map_box.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        self.image_map_box.grid(row=0, column=0, sticky="nsew", padx=(8, 0), pady=8)
         return frame
 
     def _actions_frame(self) -> tk.Frame:
@@ -356,3 +359,15 @@ class NarrationDeckGUI:
 
     def _default_project_name(self) -> str:
         return f"NarrationDeck_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    def _show_image_anchor_help(self) -> None:
+        message = (
+            "Image anchor format:\n"
+            "  Image 01 : first words of the segment\n"
+            "  Image 02 : next words of the segment\n\n"
+            "Tips:\n"
+            "- The snippet should match the narration text as spoken.\n"
+            "- Matching is case-insensitive and ignores punctuation.\n"
+            "- Each image starts at the first matched word and ends at the next image start."
+        )
+        messagebox.showinfo("Image Anchors Help", message)
