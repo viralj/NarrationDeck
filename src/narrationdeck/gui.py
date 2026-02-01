@@ -321,6 +321,8 @@ class NarrationDeckGUI:
         self._log(f"Timestamps saved: {result['timestamps_path']}")
         if result.get("image_timeline_path"):
             self._log(f"Image timeline saved: {result['image_timeline_path']}")
+        if result.get("image_report_path"):
+            self._log(f"Image report saved: {result['image_report_path']}")
         if result.get("missing_images"):
             self._log(f"Missing image anchors: {', '.join(result['missing_images'])}")
         if result.get("image_segments"):

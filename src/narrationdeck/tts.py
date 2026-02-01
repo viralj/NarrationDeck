@@ -55,11 +55,13 @@ def generate_audio_and_srt(
     srt_filename = f"{safe_prefix}_{run_id}.srt"
     timestamps_filename = f"{safe_prefix}_{run_id}_timestamps.json"
     image_timeline_filename = f"{safe_prefix}_{run_id}_image_timeline.json"
+    image_report_filename = f"{safe_prefix}_{run_id}_image_report.txt"
 
     audio_path = output_path / audio_filename
     srt_path = output_path / srt_filename
     timestamps_path = output_path / timestamps_filename
     image_timeline_path = output_path / image_timeline_filename
+    image_report_path = output_path / image_report_filename
 
     audio_path.write_bytes(result["audio_bytes"])
 
@@ -93,12 +95,17 @@ def generate_audio_and_srt(
                 "missing": missing_images,
             }
             image_timeline_path.write_text(json.dumps(image_payload, indent=2), encoding="utf-8")
+            image_report_path.write_text(
+                _format_image_report(image_segments, missing_images),
+                encoding="utf-8",
+            )
 
     return {
         "audio_path": str(audio_path),
         "srt_path": str(srt_path),
         "timestamps_path": str(timestamps_path),
         "image_timeline_path": str(image_timeline_path) if image_segments else None,
+        "image_report_path": str(image_report_path) if image_segments else None,
         "image_segments": [segment.__dict__ for segment in image_segments],
         "missing_images": missing_images,
         "note": " ".join(notes).strip() if notes else None,
@@ -107,3 +114,19 @@ def generate_audio_and_srt(
 
 def _safe_prefix(value: str) -> str:
     return "".join(ch for ch in value if ch.isalnum() or ch in ("-", "_")).strip()
+
+
+def _format_image_report(image_segments: list, missing_images: list[str]) -> str:
+    lines = ["Image Anchor Report", "====================", ""]
+    for segment in image_segments:
+        lines.append(
+            f"Image {segment.image_id} | {segment.start:.3f}s -> {segment.end:.3f}s"
+        )
+        lines.append(f"  Snippet: {segment.snippet}")
+        lines.append(f"  Match word index: {segment.match_index}")
+        lines.append("")
+    if missing_images:
+        lines.append("Missing anchors:")
+        for image_id in missing_images:
+            lines.append(f"  Image {image_id}")
+    return "\n".join(lines).rstrip() + "\n"
