@@ -240,6 +240,13 @@ class NarrationDeckGUI:
             state="normal",
         ).grid(row=0, column=2, padx=6, pady=6)
 
+        tk.Button(
+            frame,
+            text="Quick Export (Generate + Payload)",
+            command=self._on_quick_export_clicked,
+            state="normal",
+        ).grid(row=0, column=3, padx=6, pady=6)
+
         return frame
 
     def _log_frame(self) -> tk.LabelFrame:
@@ -345,6 +352,14 @@ class NarrationDeckGUI:
         self._log(f"Resolve payload saved: {payload_path}")
         if not self.last_generation:
             self._log("Note: No audio/SRT artifacts recorded yet. Generate audio first.")
+
+    def _on_quick_export_clicked(self) -> None:
+        self._log("Running quick export...")
+        self._on_generate_clicked()
+        if not self.last_generation:
+            self._log("Quick export stopped: audio generation failed.")
+            return
+        self._on_export_payload_clicked()
 
     def _resolution_labels(self) -> list[str]:
         return [
