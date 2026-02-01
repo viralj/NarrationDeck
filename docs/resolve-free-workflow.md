@@ -35,6 +35,7 @@ The script will:
 - Import images + audio.
 - Place images according to the image timeline JSON.
 - Insert Text+ captions using ElevenLabs timestamps (best effort).
+  - If Text+ fails, it imports the SRT and prints a manual insert hint.
 
 ## Transitions and Fades
 Crossfades between images and Text+ fade in/out are not exposed in the Resolve
@@ -51,5 +52,7 @@ same workflow. For now, apply transitions manually:
 ## Notes
 - Text+ insertion depends on the preset name and may fall back to default
   duration if the API refuses to set clip duration.
+- If Text+ fails, right-click the SRT clip in the Media Pool and choose
+  **Insert Selected Subtitles to Timeline Using Timecode**.
 - If a still image duration looks wrong, adjust the Resolve default still
   duration or report the issue so we can refine the placement logic.

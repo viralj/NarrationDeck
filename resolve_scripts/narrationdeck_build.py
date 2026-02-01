@@ -260,6 +260,7 @@ def main():
 
     timestamps_path = artifacts.get("timestamps_path")
     textplus_name = project_info.get("textplus_preset") or "Text+"
+    textplus_failed = False
     if timestamps_path and Path(timestamps_path).exists():
         try:
             with open(timestamps_path, "r", encoding="utf-8") as handle:
@@ -281,7 +282,8 @@ def main():
                 title_item = timeline.InsertFusionTitleIntoTimeline(textplus_name)
                 if not title_item:
                     print(f"Failed to insert Text+ at {timecode}")
-                    continue
+                    textplus_failed = True
+                    break
 
                 if not _set_title_duration(title_item, duration_frames):
                     print("Warning: could not set title duration; using default.")
@@ -289,6 +291,17 @@ def main():
                 if not _set_title_text(title_item, caption.get("text", "")):
                     print("Warning: could not set Text+ content for a caption.")
                 print("Note: Text+ fade in/out is not currently supported by the scripting API.")
+
+    if textplus_failed:
+        srt_path = artifacts.get("srt_path")
+        if srt_path and Path(srt_path).exists():
+            items = media_pool.ImportMedia([srt_path])
+            if items:
+                print("Text+ preset failed. Imported SRT into Media Pool.")
+                print("Manual step: Right-click the subtitle clip and choose")
+                print("'Insert Selected Subtitles to Timeline Using Timecode'.")
+            else:
+                print("Text+ preset failed and SRT import did not succeed.")
 
     print("NarrationDeck import complete.")
 
