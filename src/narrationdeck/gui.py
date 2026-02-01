@@ -8,7 +8,7 @@ from typing import Iterable
 from datetime import datetime
 
 from .tts import generate_audio_and_srt
-from .config import get_api_key
+from .config import get_api_key, get_setting, set_setting
 from .payload import build_resolve_payload, write_resolve_payload
 from .constants import FRAME_RATES, RESOLUTION_PRESETS
 
@@ -18,7 +18,7 @@ class NarrationDeckGUI:
         self.root = root
         self.voices = list(voices or [])
 
-        self.images_dir = tk.StringVar()
+        self.images_dir = tk.StringVar(value=get_setting("last_images_dir", ""))
         self.narration_text = tk.StringVar()
         self.voice_label = tk.StringVar()
         self.speed = tk.DoubleVar(value=1.0)
@@ -262,6 +262,7 @@ class NarrationDeckGUI:
         path = filedialog.askdirectory()
         if path:
             self.images_dir.set(path)
+            set_setting("last_images_dir", path)
             self._log(f"Selected folder: {path}")
 
     def _on_generate_clicked(self) -> None:
