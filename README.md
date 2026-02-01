@@ -71,6 +71,11 @@ See `docs/resolve-free-workflow.md` for the Free-tier workflow.
 - **Studio:** external scripting is supported (future phase will wire the GUI
   directly to Resolve).
 
+### Transitions and Fades
+Crossfades and Text+ fades are not automated yet. After import, you can select
+all cuts and apply Resolve's default transition, and add Text+ fades in the
+Inspector or Fusion as needed.
+
 ### Resolve Version Notes
 Resolve 20.x introduced changes in scripting behavior and may restrict external
 scripts to Studio only. If you are on an older version and external scripts work

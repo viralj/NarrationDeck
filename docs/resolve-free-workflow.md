@@ -41,6 +41,13 @@ Crossfades between images and Text+ fade in/out are not exposed in the Resolve
 scripting API for the Free workflow, so they are not automated yet. You can
 apply the default transition manually after import.
 
+### Studio Note
+If you are on Resolve Studio and can run external scripts, you can still use the
+same workflow. For now, apply transitions manually:
+- Select all image cuts on the timeline.
+- Apply the default video transition (cross dissolve).
+- For Text+, apply fade in/out in the Inspector or add keyframes in Fusion.
+
 ## Notes
 - Text+ insertion depends on the preset name and may fall back to default
   duration if the API refuses to set clip duration.
