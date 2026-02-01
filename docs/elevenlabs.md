@@ -30,3 +30,9 @@ GUI to skip unmatched anchors and still generate output.
 
 ## Speed Control
 ElevenLabs `speed` is clamped to the supported range (0.7 to 1.2).
+
+## Caption Chunking
+You can tune caption chunking in the GUI:
+- Max characters per caption
+- Max caption duration (seconds)
+- Line width (characters per line)

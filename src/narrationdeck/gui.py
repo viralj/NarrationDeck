@@ -34,6 +34,9 @@ class NarrationDeckGUI:
         self.timeline_name = tk.StringVar(value="NarrationDeck Timeline")
         self.textplus_preset = tk.StringVar(value="NarrationDeck_TextPlus")
         self.output_prefix = tk.StringVar(value="narration")
+        self.caption_max_chars = tk.IntVar(value=80)
+        self.caption_max_duration = tk.DoubleVar(value=4.0)
+        self.caption_line_chars = tk.IntVar(value=42)
 
         self.last_generation: dict | None = None
 
@@ -205,6 +208,27 @@ class NarrationDeckGUI:
             bg="#f5f6f8",
         ).grid(row=4, column=0, columnspan=2, sticky="w", padx=8, pady=6)
 
+        tk.Label(frame, text="Caption Max Chars", bg="#f5f6f8").grid(
+            row=3, column=3, sticky="w", padx=8, pady=6
+        )
+        tk.Spinbox(frame, from_=40, to=120, increment=5, textvariable=self.caption_max_chars, width=8).grid(
+            row=3, column=4, sticky="w", padx=8, pady=6
+        )
+
+        tk.Label(frame, text="Caption Max Duration (s)", bg="#f5f6f8").grid(
+            row=4, column=3, sticky="w", padx=8, pady=6
+        )
+        tk.Spinbox(frame, from_=1.0, to=8.0, increment=0.5, textvariable=self.caption_max_duration, width=8).grid(
+            row=4, column=4, sticky="w", padx=8, pady=6
+        )
+
+        tk.Label(frame, text="Caption Line Width", bg="#f5f6f8").grid(
+            row=5, column=3, sticky="w", padx=8, pady=6
+        )
+        tk.Spinbox(frame, from_=24, to=60, increment=2, textvariable=self.caption_line_chars, width=8).grid(
+            row=5, column=4, sticky="w", padx=8, pady=6
+        )
+
         return frame
 
     def _narration_frame(self) -> tk.LabelFrame:
@@ -316,6 +340,9 @@ class NarrationDeckGUI:
                 output_prefix=self.output_prefix.get().strip() or "narration",
                 image_map_text=image_map_text,
                 allow_missing_image_anchors=self.allow_missing_anchors.get(),
+                caption_max_chars=self.caption_max_chars.get(),
+                caption_max_duration=self.caption_max_duration.get(),
+                caption_line_chars=self.caption_line_chars.get(),
             )
         except Exception as exc:
             self._log(f"Failed: {exc}")
