@@ -17,6 +17,7 @@ def generate_audio_and_srt(
     speed: float,
     output_format: str,
     api_key: str,
+    output_prefix: str = "narration",
     image_map_text: str | None = None,
     allow_missing_image_anchors: bool = False,
 ) -> dict:
@@ -49,10 +50,11 @@ def generate_audio_and_srt(
         speed=speed,
     )
 
-    audio_filename = f"narration_{run_id}.mp3"
-    srt_filename = f"narration_{run_id}.srt"
-    timestamps_filename = f"narration_{run_id}_timestamps.json"
-    image_timeline_filename = f"narration_{run_id}_image_timeline.json"
+    safe_prefix = _safe_prefix(output_prefix) or "narration"
+    audio_filename = f"{safe_prefix}_{run_id}.mp3"
+    srt_filename = f"{safe_prefix}_{run_id}.srt"
+    timestamps_filename = f"{safe_prefix}_{run_id}_timestamps.json"
+    image_timeline_filename = f"{safe_prefix}_{run_id}_image_timeline.json"
 
     audio_path = output_path / audio_filename
     srt_path = output_path / srt_filename
@@ -101,3 +103,7 @@ def generate_audio_and_srt(
         "missing_images": missing_images,
         "note": " ".join(notes).strip() if notes else None,
     }
+
+
+def _safe_prefix(value: str) -> str:
+    return "".join(ch for ch in value if ch.isalnum() or ch in ("-", "_")).strip()

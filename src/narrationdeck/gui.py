@@ -31,6 +31,7 @@ class NarrationDeckGUI:
         self.project_name = tk.StringVar(value=self._default_project_name())
         self.timeline_name = tk.StringVar(value="NarrationDeck Timeline")
         self.textplus_preset = tk.StringVar(value="NarrationDeck_TextPlus")
+        self.output_prefix = tk.StringVar(value="narration")
 
         self.last_generation: dict | None = None
 
@@ -184,12 +185,19 @@ class NarrationDeckGUI:
             row=2, column=1, sticky="e", padx=8, pady=6
         )
 
+        tk.Label(frame, text="Output Prefix", bg="#f5f6f8").grid(
+            row=3, column=0, sticky="w", padx=8, pady=6
+        )
+        tk.Entry(frame, textvariable=self.output_prefix).grid(
+            row=3, column=1, sticky="ew", padx=8, pady=6
+        )
+
         tk.Checkbutton(
             frame,
             text="Allow missing image anchors (lenient)",
             variable=self.allow_missing_anchors,
             bg="#f5f6f8",
-        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=8, pady=6)
+        ).grid(row=4, column=0, columnspan=2, sticky="w", padx=8, pady=6)
 
         return frame
 
@@ -299,6 +307,7 @@ class NarrationDeckGUI:
                 speed=self.speed.get(),
                 output_format=self.output_format.get(),
                 api_key=api_key,
+                output_prefix=self.output_prefix.get().strip() or "narration",
                 image_map_text=image_map_text,
                 allow_missing_image_anchors=self.allow_missing_anchors.get(),
             )
