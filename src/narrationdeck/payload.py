@@ -37,6 +37,7 @@ def build_resolve_payload(
             "allow_missing_anchors": allow_missing_image_anchors,
         },
         "artifacts": {},
+        "validation": {},
     }
 
     if last_generation:
@@ -45,6 +46,25 @@ def build_resolve_payload(
             "srt_path": last_generation.get("srt_path"),
             "timestamps_path": last_generation.get("timestamps_path"),
             "image_timeline_path": last_generation.get("image_timeline_path"),
+        }
+    else:
+        audio_files, srt_files = _detect_media_files(images_dir)
+        warnings = []
+        if len(audio_files) != 1:
+            warnings.append(f"Expected 1 audio file, found {len(audio_files)}.")
+        if len(srt_files) != 1:
+            warnings.append(f"Expected 1 SRT file, found {len(srt_files)}.")
+        if len(audio_files) == 1 and len(srt_files) == 1:
+            payload["artifacts"] = {
+                "audio_path": audio_files[0],
+                "srt_path": srt_files[0],
+                "timestamps_path": None,
+                "image_timeline_path": None,
+            }
+        payload["validation"] = {
+            "audio_files": audio_files,
+            "srt_files": srt_files,
+            "warnings": warnings,
         }
 
     return payload
@@ -73,3 +93,21 @@ def _resolve_preset(label: str) -> dict:
 
 def _default_project_name() -> str:
     return f"NarrationDeck_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+
+def _detect_media_files(images_dir: str) -> tuple[list[str], list[str]]:
+    folder = Path(images_dir)
+    if not folder.exists():
+        return [], []
+    audio_exts = {".mp3", ".wav", ".m4a", ".aac", ".flac"}
+    audio_files = []
+    srt_files = []
+    for entry in folder.iterdir():
+        if not entry.is_file():
+            continue
+        ext = entry.suffix.lower()
+        if ext in audio_exts:
+            audio_files.append(str(entry))
+        elif ext == ".srt":
+            srt_files.append(str(entry))
+    return sorted(audio_files), sorted(srt_files)

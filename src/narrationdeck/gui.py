@@ -370,6 +370,9 @@ class NarrationDeckGUI:
         self._log(f"Resolve payload saved: {payload_path}")
         if not self.last_generation:
             self._log("Note: No audio/SRT artifacts recorded yet. Generate audio first.")
+            warnings = payload.get("validation", {}).get("warnings", [])
+            for warning in warnings:
+                self._log(f"Validation: {warning}")
 
     def _on_quick_export_clicked(self) -> None:
         self._log("Running quick export...")
