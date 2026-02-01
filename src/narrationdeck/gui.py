@@ -40,8 +40,15 @@ class NarrationDeckGUI:
     def render(self) -> None:
         self.root.geometry("900x700")
         self.root.minsize(820, 640)
+        self.root.configure(bg="#f5f6f8")
 
-        title = tk.Label(self.root, text="NarrationDeck", font=("Segoe UI", 18, "bold"))
+        title = tk.Label(
+            self.root,
+            text="NarrationDeck",
+            font=("Segoe UI", 18, "bold"),
+            bg="#f5f6f8",
+            fg="#1f2a44",
+        )
         title.grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(12, 6))
 
         self._project_settings_frame().grid(
@@ -66,70 +73,108 @@ class NarrationDeckGUI:
         self.root.grid_rowconfigure(6, weight=1)
 
     def _project_settings_frame(self) -> tk.LabelFrame:
-        frame = tk.LabelFrame(self.root, text="Project Settings (Phase 1 Placeholder)")
+        frame = tk.LabelFrame(
+            self.root,
+            text="Project Settings (Phase 1 Placeholder)",
+            bg="#f5f6f8",
+            fg="#1f2a44",
+        )
         frame.grid_columnconfigure(1, weight=1)
         frame.grid_columnconfigure(3, weight=1)
 
-        tk.Label(frame, text="Project Mode").grid(row=0, column=0, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Project Mode", bg="#f5f6f8").grid(
+            row=0, column=0, sticky="w", padx=8, pady=6
+        )
         tk.Radiobutton(
-            frame, text="Create new", variable=self.project_mode, value="create"
+            frame,
+            text="Create new",
+            variable=self.project_mode,
+            value="create",
+            bg="#f5f6f8",
         ).grid(row=0, column=1, sticky="w", padx=8, pady=6)
         tk.Radiobutton(
-            frame, text="Use existing (coming soon)", variable=self.project_mode, value="existing", state="disabled"
-        ).grid(row=0, column=2, sticky="w", padx=8, pady=6)
+            frame,
+            text="Use existing (coming soon)",
+            variable=self.project_mode,
+            value="existing",
+            state="disabled",
+            bg="#f5f6f8",
+        ).grid(row=0, column=1, sticky="e", padx=8, pady=6)
 
-        tk.Label(frame, text="Project Name").grid(row=0, column=3, sticky="w", padx=8, pady=6)
-        tk.Entry(frame, textvariable=self.project_name).grid(row=0, column=4, sticky="ew", padx=8, pady=6)
+        tk.Label(frame, text="Project Name", bg="#f5f6f8").grid(
+            row=0, column=2, sticky="w", padx=8, pady=6
+        )
+        tk.Entry(frame, textvariable=self.project_name).grid(
+            row=0, column=3, sticky="ew", padx=8, pady=6
+        )
 
-        tk.Label(frame, text="Resolution").grid(row=1, column=0, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Resolution", bg="#f5f6f8").grid(
+            row=1, column=0, sticky="w", padx=8, pady=6
+        )
         tk.OptionMenu(frame, self.resolution_label, *self._resolution_labels()).grid(
-            row=1, column=1, columnspan=2, sticky="ew", padx=8, pady=6
+            row=1, column=1, sticky="ew", padx=8, pady=6
         )
 
-        tk.Label(frame, text="Frame Rate").grid(row=1, column=3, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Frame Rate", bg="#f5f6f8").grid(
+            row=1, column=2, sticky="w", padx=8, pady=6
+        )
         tk.OptionMenu(frame, self.frame_rate, *FRAME_RATES).grid(
-            row=1, column=4, sticky="w", padx=8, pady=6
+            row=1, column=3, sticky="ew", padx=8, pady=6
         )
 
-        tk.Label(frame, text="Timeline Name").grid(row=2, column=0, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Timeline Name", bg="#f5f6f8").grid(
+            row=2, column=0, sticky="w", padx=8, pady=6
+        )
         tk.Entry(frame, textvariable=self.timeline_name).grid(
             row=2, column=1, sticky="ew", padx=8, pady=6
         )
 
-        tk.Label(frame, text="Text+ Preset").grid(row=2, column=3, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Text+ Preset", bg="#f5f6f8").grid(
+            row=2, column=2, sticky="w", padx=8, pady=6
+        )
         tk.Entry(frame, textvariable=self.textplus_preset).grid(
-            row=2, column=4, sticky="ew", padx=8, pady=6
+            row=2, column=3, sticky="ew", padx=8, pady=6
         )
 
         return frame
 
     def _inputs_frame(self) -> tk.LabelFrame:
-        frame = tk.LabelFrame(self.root, text="Inputs")
+        frame = tk.LabelFrame(self.root, text="Inputs", bg="#f5f6f8", fg="#1f2a44")
         frame.grid_columnconfigure(1, weight=1)
-        frame.grid_columnconfigure(3, weight=1)
+        frame.grid_columnconfigure(4, weight=1)
 
-        tk.Label(frame, text="Images Folder").grid(row=0, column=0, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Images Folder", bg="#f5f6f8").grid(
+            row=0, column=0, sticky="w", padx=8, pady=6
+        )
         tk.Entry(frame, textvariable=self.images_dir).grid(row=0, column=1, sticky="ew", padx=8, pady=6)
         tk.Button(frame, text="Browse", command=self._browse_images).grid(
             row=0, column=2, sticky="w", padx=4, pady=6
         )
 
-        tk.Label(frame, text="Voice").grid(row=1, column=0, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Voice", bg="#f5f6f8").grid(
+            row=1, column=0, sticky="w", padx=8, pady=6
+        )
         tk.OptionMenu(frame, self.voice_label, *self._voice_labels()).grid(
             row=1, column=1, sticky="ew", padx=8, pady=6
         )
 
-        tk.Label(frame, text="Speed (x)").grid(row=1, column=2, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Speed (x)", bg="#f5f6f8").grid(
+            row=1, column=3, sticky="w", padx=8, pady=6
+        )
         tk.Scale(
             frame, variable=self.speed, from_=0.7, to=1.2, resolution=0.05, orient="horizontal", length=160
-        ).grid(row=1, column=3, sticky="w", padx=8, pady=6)
+        ).grid(row=1, column=4, sticky="w", padx=8, pady=6)
 
-        tk.Label(frame, text="Volume (%)").grid(row=2, column=2, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Volume (%)", bg="#f5f6f8").grid(
+            row=2, column=3, sticky="w", padx=8, pady=6
+        )
         tk.Scale(
             frame, variable=self.volume, from_=0, to=200, resolution=1, orient="horizontal", length=160
-        ).grid(row=2, column=3, sticky="w", padx=8, pady=6)
+        ).grid(row=2, column=4, sticky="w", padx=8, pady=6)
 
-        tk.Label(frame, text="Output Format").grid(row=2, column=0, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Output Format", bg="#f5f6f8").grid(
+            row=2, column=0, sticky="w", padx=8, pady=6
+        )
         tk.Radiobutton(frame, text="MP3", variable=self.output_format, value="mp3").grid(
             row=2, column=1, sticky="w", padx=8, pady=6
         )
@@ -141,32 +186,33 @@ class NarrationDeckGUI:
             frame,
             text="Allow missing image anchors (lenient)",
             variable=self.allow_missing_anchors,
+            bg="#f5f6f8",
         ).grid(row=3, column=0, columnspan=2, sticky="w", padx=8, pady=6)
 
         return frame
 
     def _narration_frame(self) -> tk.LabelFrame:
-        frame = tk.LabelFrame(self.root, text="Narration Text")
+        frame = tk.LabelFrame(self.root, text="Narration Text", bg="#f5f6f8", fg="#1f2a44")
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
 
-        self.narration_box = tk.Text(frame, height=10, wrap="word")
+        self.narration_box = tk.Text(frame, height=10, wrap="word", bg="white")
         self.narration_box.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
 
         return frame
 
     def _image_map_frame(self) -> tk.LabelFrame:
-        frame = tk.LabelFrame(self.root, text="Image Anchors (optional)")
+        frame = tk.LabelFrame(self.root, text="Image Anchors (optional)", bg="#f5f6f8", fg="#1f2a44")
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
 
-        self.image_map_box = tk.Text(frame, height=6, wrap="word")
+        self.image_map_box = tk.Text(frame, height=6, wrap="word", bg="white")
         self.image_map_box.insert("end", "Image 01 : first words of the segment\n")
         self.image_map_box.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         return frame
 
     def _actions_frame(self) -> tk.Frame:
-        frame = tk.Frame(self.root)
+        frame = tk.Frame(self.root, bg="#f5f6f8")
 
         tk.Button(
             frame,
@@ -192,11 +238,11 @@ class NarrationDeckGUI:
         return frame
 
     def _log_frame(self) -> tk.LabelFrame:
-        frame = tk.LabelFrame(self.root, text="Status Log")
+        frame = tk.LabelFrame(self.root, text="Status Log", bg="#f5f6f8", fg="#1f2a44")
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
 
-        self.log_box = tk.Text(frame, height=8, wrap="word", state="disabled")
+        self.log_box = tk.Text(frame, height=8, wrap="word", state="disabled", bg="white")
         self.log_box.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         return frame
 
