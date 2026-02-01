@@ -14,6 +14,10 @@ NarrationDeck generates a Resolve timeline from:
 5) Export a Resolve payload JSON.
 6) Run the Resolve script to build a project + timeline (images, audio, Text+).
 
+## Using Existing Audio/Timestamps
+If you already have audio + timestamps JSON, enable **Use existing artifacts**
+in the GUI to skip the ElevenLabs call.
+
 ## Image Timing Strategy
 The planned flow is:
 - captions (Text+) are timed strictly to narration SRT timestamps

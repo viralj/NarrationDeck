@@ -8,7 +8,7 @@ from tkinter import filedialog, messagebox
 from typing import Iterable
 from datetime import datetime
 
-from .tts import generate_audio_and_srt
+from .tts import generate_audio_and_srt, build_image_timeline_from_timestamps
 from .config import get_api_key, get_setting, set_setting
 from .payload import build_resolve_payload, write_resolve_payload
 from .constants import FRAME_RATES, RESOLUTION_PRESETS
@@ -37,6 +37,10 @@ class NarrationDeckGUI:
         self.caption_max_chars = tk.IntVar(value=80)
         self.caption_max_duration = tk.DoubleVar(value=4.0)
         self.caption_line_chars = tk.IntVar(value=42)
+        self.use_existing = tk.BooleanVar(value=False)
+        self.existing_audio = tk.StringVar(value="")
+        self.existing_timestamps = tk.StringVar(value="")
+        self.existing_srt = tk.StringVar(value="")
 
         self.last_generation: dict | None = None
 
@@ -208,6 +212,43 @@ class NarrationDeckGUI:
             bg="#f5f6f8",
         ).grid(row=4, column=0, columnspan=2, sticky="w", padx=8, pady=6)
 
+        tk.Checkbutton(
+            frame,
+            text="Use existing artifacts (skip ElevenLabs)",
+            variable=self.use_existing,
+            bg="#f5f6f8",
+        ).grid(row=5, column=0, columnspan=2, sticky="w", padx=8, pady=6)
+
+        tk.Label(frame, text="Existing Audio", bg="#f5f6f8").grid(
+            row=6, column=0, sticky="w", padx=8, pady=6
+        )
+        tk.Entry(frame, textvariable=self.existing_audio).grid(
+            row=6, column=1, sticky="ew", padx=8, pady=6
+        )
+        tk.Button(frame, text="Browse", command=self._browse_existing_audio).grid(
+            row=6, column=2, sticky="w", padx=4, pady=6
+        )
+
+        tk.Label(frame, text="Existing Timestamps", bg="#f5f6f8").grid(
+            row=7, column=0, sticky="w", padx=8, pady=6
+        )
+        tk.Entry(frame, textvariable=self.existing_timestamps).grid(
+            row=7, column=1, sticky="ew", padx=8, pady=6
+        )
+        tk.Button(frame, text="Browse", command=self._browse_existing_timestamps).grid(
+            row=7, column=2, sticky="w", padx=4, pady=6
+        )
+
+        tk.Label(frame, text="Existing SRT", bg="#f5f6f8").grid(
+            row=8, column=0, sticky="w", padx=8, pady=6
+        )
+        tk.Entry(frame, textvariable=self.existing_srt).grid(
+            row=8, column=1, sticky="ew", padx=8, pady=6
+        )
+        tk.Button(frame, text="Browse", command=self._browse_existing_srt).grid(
+            row=8, column=2, sticky="w", padx=4, pady=6
+        )
+
         tk.Label(frame, text="Caption Max Chars", bg="#f5f6f8").grid(
             row=3, column=3, sticky="w", padx=8, pady=6
         )
@@ -303,6 +344,33 @@ class NarrationDeckGUI:
             set_setting("last_images_dir", path)
             self._log(f"Selected folder: {path}")
 
+    def _browse_existing_audio(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Select audio file",
+            filetypes=[("Audio", "*.mp3 *.wav *.m4a *.aac *.flac"), ("All files", "*.*")],
+        )
+        if path:
+            self.existing_audio.set(path)
+            self._log(f"Selected audio: {path}")
+
+    def _browse_existing_timestamps(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Select timestamps JSON",
+            filetypes=[("JSON", "*.json"), ("All files", "*.*")],
+        )
+        if path:
+            self.existing_timestamps.set(path)
+            self._log(f"Selected timestamps: {path}")
+
+    def _browse_existing_srt(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Select SRT file",
+            filetypes=[("SRT", "*.srt"), ("All files", "*.*")],
+        )
+        if path:
+            self.existing_srt.set(path)
+            self._log(f"Selected SRT: {path}")
+
     def _on_generate_clicked(self) -> None:
         images_dir = self.images_dir.get().strip()
         if not images_dir:
@@ -311,42 +379,47 @@ class NarrationDeckGUI:
         self._validate_images(images_dir)
 
         narration_text = self.narration_box.get("1.0", "end").strip()
-        if not narration_text:
+        if not narration_text and not self.use_existing.get():
             self._log("Please paste narration text before generating.")
             return
 
         voice = self._selected_voice()
-        if not voice:
+        if not voice and not self.use_existing.get():
             self._log("Selected voice not found in voices.json.")
             return
 
-        api_key = get_api_key()
-        if not api_key:
-            self._log("Missing ELEVENLABS_API_KEY in .env or environment.")
-            return
+        image_map_text = self.image_map_box.get("1.0", "end").strip()
+        if self.use_existing.get():
+            result = self._use_existing_artifacts(images_dir, image_map_text)
+            if not result:
+                return
+        else:
+            api_key = get_api_key()
+            if not api_key:
+                self._log("Missing ELEVENLABS_API_KEY in .env or environment.")
+                return
 
-        self._log("Generating audio + SRT via ElevenLabs...")
-        self._log(f"Voice: {voice.get('label', 'Unknown')} | Speed: {self.speed.get():.2f} | Volume: {self.volume.get():.0f}%")
-        self._log("Note: Volume is reserved for Resolve clip gain in later phases.")
-        try:
-            image_map_text = self.image_map_box.get("1.0", "end").strip()
-            result = generate_audio_and_srt(
-                output_dir=images_dir,
-                text=narration_text,
-                voice=voice,
-                speed=self.speed.get(),
-                output_format=self.output_format.get(),
-                api_key=api_key,
-                output_prefix=self.output_prefix.get().strip() or "narration",
-                image_map_text=image_map_text,
-                allow_missing_image_anchors=self.allow_missing_anchors.get(),
-                caption_max_chars=self.caption_max_chars.get(),
-                caption_max_duration=self.caption_max_duration.get(),
-                caption_line_chars=self.caption_line_chars.get(),
-            )
-        except Exception as exc:
-            self._log(f"Failed: {exc}")
-            return
+            self._log("Generating audio + SRT via ElevenLabs...")
+            self._log(f"Voice: {voice.get('label', 'Unknown')} | Speed: {self.speed.get():.2f} | Volume: {self.volume.get():.0f}%")
+            self._log("Note: Volume is reserved for Resolve clip gain in later phases.")
+            try:
+                result = generate_audio_and_srt(
+                    output_dir=images_dir,
+                    text=narration_text,
+                    voice=voice,
+                    speed=self.speed.get(),
+                    output_format=self.output_format.get(),
+                    api_key=api_key,
+                    output_prefix=self.output_prefix.get().strip() or "narration",
+                    image_map_text=image_map_text,
+                    allow_missing_image_anchors=self.allow_missing_anchors.get(),
+                    caption_max_chars=self.caption_max_chars.get(),
+                    caption_max_duration=self.caption_max_duration.get(),
+                    caption_line_chars=self.caption_line_chars.get(),
+                )
+            except Exception as exc:
+                self._log(f"Failed: {exc}")
+                return
 
         self.last_generation = result
         self._log(f"Audio saved: {result['audio_path']}")
@@ -449,6 +522,42 @@ class NarrationDeckGUI:
             "- Each image starts at the first matched word and ends at the next image start."
         )
         messagebox.showinfo("Image Anchors Help", message)
+
+    def _use_existing_artifacts(self, images_dir: str, image_map_text: str) -> dict | None:
+        audio_path = self.existing_audio.get().strip()
+        timestamps_path = self.existing_timestamps.get().strip()
+        srt_path = self.existing_srt.get().strip()
+
+        if not audio_path:
+            self._log("Missing existing audio file.")
+            return None
+        if not timestamps_path:
+            self._log("Missing existing timestamps JSON.")
+            return None
+
+        self._log("Using existing artifacts (skipping ElevenLabs).")
+        try:
+            timeline_result = build_image_timeline_from_timestamps(
+                output_dir=images_dir,
+                timestamps_path=timestamps_path,
+                image_map_text=image_map_text,
+                allow_missing_image_anchors=self.allow_missing_anchors.get(),
+                output_prefix=self.output_prefix.get().strip() or "narration",
+            )
+        except Exception as exc:
+            self._log(f"Failed to build image timeline: {exc}")
+            return None
+
+        return {
+            "audio_path": audio_path,
+            "srt_path": srt_path or None,
+            "timestamps_path": timestamps_path,
+            "image_timeline_path": timeline_result.get("image_timeline_path"),
+            "image_report_path": timeline_result.get("image_report_path"),
+            "image_segments": timeline_result.get("image_segments", []),
+            "missing_images": timeline_result.get("missing_images", []),
+            "note": None,
+        }
 
     def _open_voice_manager(self) -> None:
         manager = tk.Toplevel(self.root)

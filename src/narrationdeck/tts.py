@@ -7,6 +7,7 @@ from pathlib import Path
 from .elevenlabs import synthesize_with_timestamps
 from .srt import alignment_to_words, words_to_captions, captions_to_srt
 from .mapping import parse_image_anchors, build_image_segments
+from .srt import WordTiming
 
 
 def generate_audio_and_srt(
@@ -117,6 +118,65 @@ def generate_audio_and_srt(
         "image_segments": [segment.__dict__ for segment in image_segments],
         "missing_images": missing_images,
         "note": " ".join(notes).strip() if notes else None,
+    }
+
+
+def build_image_timeline_from_timestamps(
+    *,
+    output_dir: str,
+    timestamps_path: str,
+    image_map_text: str,
+    allow_missing_image_anchors: bool,
+    output_prefix: str,
+) -> dict:
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    safe_prefix = _safe_prefix(output_prefix) or "narration"
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    image_timeline_filename = f"{safe_prefix}_{run_id}_image_timeline.json"
+    image_report_filename = f"{safe_prefix}_{run_id}_image_report.txt"
+    image_timeline_path = output_path / image_timeline_filename
+    image_report_path = output_path / image_report_filename
+
+    data = json.loads(Path(timestamps_path).read_text(encoding="utf-8"))
+    words_data = data.get("words", [])
+    if words_data:
+        words = [WordTiming(**item) for item in words_data]
+    else:
+        alignment = data.get("alignment")
+        if not alignment:
+            raise ValueError("Timestamps JSON missing words or alignment.")
+        words = alignment_to_words(alignment)
+
+    anchors = parse_image_anchors(image_map_text)
+    if not anchors:
+        raise ValueError("No image anchors provided.")
+
+    image_segments = build_image_segments(
+        anchors=anchors,
+        words=words,
+        allow_missing=allow_missing_image_anchors,
+    )
+    matched_ids = {segment.image_id for segment in image_segments}
+    missing_images = [anchor.image_id for anchor in anchors if anchor.image_id not in matched_ids]
+
+    image_payload = {
+        "anchors": [anchor.__dict__ for anchor in anchors],
+        "segments": [segment.__dict__ for segment in image_segments],
+        "missing": missing_images,
+    }
+    image_timeline_path.write_text(json.dumps(image_payload, indent=2), encoding="utf-8")
+    image_report_path.write_text(
+        _format_image_report(image_segments, missing_images),
+        encoding="utf-8",
+    )
+
+    return {
+        "image_timeline_path": str(image_timeline_path),
+        "image_report_path": str(image_report_path),
+        "image_segments": [segment.__dict__ for segment in image_segments],
+        "missing_images": missing_images,
     }
 
 

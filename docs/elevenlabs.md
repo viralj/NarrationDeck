@@ -36,3 +36,13 @@ You can tune caption chunking in the GUI:
 - Max characters per caption
 - Max caption duration (seconds)
 - Line width (characters per line)
+
+## Using Existing Artifacts
+If you already generated audio + timestamps, enable **Use existing artifacts**
+and select:
+- an audio file
+- a timestamps JSON file
+- optional SRT file
+
+NarrationDeck will skip the API call and build the image timeline from the
+timestamps file.
