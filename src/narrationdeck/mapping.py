@@ -92,6 +92,7 @@ def build_image_segments(
 
 def _normalize_text(text: str) -> str:
     text = text.lower()
+    text = text.replace("…", " ")
     text = re.sub(r"[\"'“”‘’]", "", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     text = re.sub(r"\s+", " ", text)
