@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tkinter as tk
 import re
 from pathlib import Path
@@ -17,6 +18,7 @@ class NarrationDeckGUI:
     def __init__(self, root: tk.Tk, voices: Iterable[dict] | None = None) -> None:
         self.root = root
         self.voices = list(voices or [])
+        self.voices_path = self._repo_root() / "voices.json"
 
         self.images_dir = tk.StringVar(value=get_setting("last_images_dir", ""))
         self.narration_text = tk.StringVar()
@@ -157,8 +159,12 @@ class NarrationDeckGUI:
         tk.Label(frame, text="Voice", bg="#f5f6f8").grid(
             row=1, column=0, sticky="w", padx=8, pady=6
         )
-        tk.OptionMenu(frame, self.voice_label, *self._voice_labels()).grid(
+        self.voice_menu = tk.OptionMenu(frame, self.voice_label, *self._voice_labels())
+        self.voice_menu.grid(
             row=1, column=1, sticky="ew", padx=8, pady=6
+        )
+        tk.Button(frame, text="Manage", command=self._open_voice_manager).grid(
+            row=1, column=2, sticky="w", padx=4, pady=6
         )
 
         tk.Label(frame, text="Speed (x)", bg="#f5f6f8").grid(
@@ -399,6 +405,9 @@ class NarrationDeckGUI:
     def _default_project_name(self) -> str:
         return f"NarrationDeck_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+    def _repo_root(self) -> Path:
+        return Path(__file__).resolve().parents[2]
+
     def _show_image_anchor_help(self) -> None:
         message = (
             "Image anchor format:\n"
@@ -410,6 +419,56 @@ class NarrationDeckGUI:
             "- Each image starts at the first matched word and ends at the next image start."
         )
         messagebox.showinfo("Image Anchors Help", message)
+
+    def _open_voice_manager(self) -> None:
+        manager = tk.Toplevel(self.root)
+        manager.title("Voice Manager")
+        manager.geometry("640x480")
+        manager.configure(bg="#f5f6f8")
+
+        tk.Label(manager, text="Edit voices.json", font=("Segoe UI", 12, "bold"), bg="#f5f6f8").pack(
+            anchor="w", padx=12, pady=(12, 6)
+        )
+
+        text = tk.Text(manager, wrap="word", bg="white")
+        text.pack(fill="both", expand=True, padx=12, pady=8)
+        try:
+            text.insert("end", self.voices_path.read_text(encoding="utf-8"))
+        except Exception:
+            text.insert("end", "{\n  \"voices\": []\n}")
+
+        button_row = tk.Frame(manager, bg="#f5f6f8")
+        button_row.pack(fill="x", padx=12, pady=(0, 12))
+
+        def save_and_reload():
+            try:
+                self.voices_path.write_text(text.get("1.0", "end").strip() + "\n", encoding="utf-8")
+                self._reload_voices()
+                self._log("Voices updated from voices.json.")
+                manager.destroy()
+            except Exception as exc:
+                messagebox.showerror("Error", f"Failed to save voices.json: {exc}")
+
+        tk.Button(button_row, text="Save", command=save_and_reload).pack(side="right")
+        tk.Button(button_row, text="Cancel", command=manager.destroy).pack(side="right", padx=(0, 8))
+
+    def _reload_voices(self) -> None:
+        try:
+            data = json.loads(self.voices_path.read_text(encoding="utf-8"))
+        except Exception:
+            data = {"voices": []}
+        voices = data.get("voices", [])
+        if not isinstance(voices, list):
+            voices = []
+        self.voices = [v for v in voices if isinstance(v, dict)]
+        labels = self._voice_labels()
+        if labels:
+            self.voice_label.set(labels[0])
+        if hasattr(self, "voice_menu"):
+            menu = self.voice_menu["menu"]
+            menu.delete(0, "end")
+            for label in labels:
+                menu.add_command(label=label, command=lambda value=label: self.voice_label.set(value))
 
     def _validate_images(self, images_dir: str) -> None:
         folder = Path(images_dir)
