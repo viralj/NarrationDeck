@@ -24,6 +24,38 @@ def _try_import_resolve():
     return None
 
 
+def _get_resolve_app(dvr):
+    if not dvr:
+        return None
+    try:
+        resolve = dvr.scriptapp("Resolve")
+        if resolve:
+            return resolve
+    except Exception:
+        pass
+
+    # Running inside Resolve/Fusion script context
+    try:
+        fusion = dvr.scriptapp("Fusion")
+        if fusion and hasattr(fusion, "GetResolve"):
+            return fusion.GetResolve()
+    except Exception:
+        pass
+
+    try:
+        import bmd
+        resolve = bmd.scriptapp("Resolve")
+        if resolve:
+            return resolve
+        fusion = bmd.scriptapp("Fusion")
+        if fusion and hasattr(fusion, "GetResolve"):
+            return fusion.GetResolve()
+    except Exception:
+        pass
+
+    return None
+
+
 def _choose_payload_path():
     env_path = os.getenv("NARRATIONDECK_PAYLOAD")
     if env_path and Path(env_path).exists():
@@ -151,7 +183,7 @@ def main():
     inputs = payload.get("inputs", {})
     artifacts = payload.get("artifacts", {})
 
-    resolve = dvr.scriptapp("Resolve")
+    resolve = _get_resolve_app(dvr)
     if not resolve:
         print("Resolve scripting app not available. Run this from Resolve Scripts menu.")
         return
