@@ -61,6 +61,7 @@ python -m narrationdeck
 - `docs/elevenlabs.md` - ElevenLabs configuration
 - `docs/resolve-free-workflow.md` - Resolve Free workflow (payload + script)
 - `docs/roadmap.md` - backlog (Free vs Studio items, recommendations)
+- `docs/shotcut.md` - Shotcut MLT export workflow
 
 ## Notes on Resolve Scripting
 Resolve Free does not allow external scripting, so NarrationDeck uses a

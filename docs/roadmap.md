@@ -19,3 +19,4 @@ Resolve Free vs Studio (where applicable).
 - Preset profiles (save/load GUI configuration).
 - Output naming templates (prefix + date/time patterns).
 - Better matching tools (duplicate-snippet disambiguation).
+- Shotcut/Kdenlive export tweaks (MLT metadata, transitions).

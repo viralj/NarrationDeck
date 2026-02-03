@@ -18,6 +18,10 @@ NarrationDeck generates a Resolve timeline from:
 If you already have audio + timestamps JSON, enable **Use existing artifacts**
 in the GUI to skip the ElevenLabs call.
 
+## Shotcut Export
+If Resolve scripting is unavailable, you can export a Shotcut `.mlt` project and
+open it in Shotcut. Subtitles can be imported from SRT in Shotcut. citeturn0search2turn0search31
+
 ## Image Timing Strategy
 The planned flow is:
 - captions (Text+) are timed strictly to narration SRT timestamps

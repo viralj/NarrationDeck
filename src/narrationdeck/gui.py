@@ -338,6 +338,13 @@ class NarrationDeckGUI:
             state="normal",
         ).grid(row=0, column=3, padx=6, pady=6)
 
+        tk.Button(
+            frame,
+            text="Export Shotcut MLT",
+            command=self._on_export_shotcut_clicked,
+            state="normal",
+        ).grid(row=0, column=4, padx=6, pady=6)
+
         return frame
 
     def _log_frame(self) -> tk.LabelFrame:
@@ -493,6 +500,33 @@ class NarrationDeckGUI:
             self._log("Quick export stopped: audio generation failed.")
             return
         self._on_export_payload_clicked()
+
+    def _on_export_shotcut_clicked(self) -> None:
+        from .shotcut import export_shotcut_mlt
+
+        images_dir = self.images_dir.get().strip()
+        if not images_dir:
+            self._log("Please select an images folder before exporting Shotcut MLT.")
+            return
+
+        if not self.last_generation or not self.last_generation.get("image_timeline_path"):
+            self._log("Missing image timeline. Generate audio/timestamps first.")
+            return
+
+        try:
+            mlt_path = export_shotcut_mlt(
+                images_dir=images_dir,
+                image_timeline_path=self.last_generation["image_timeline_path"],
+                audio_path=self.last_generation.get("audio_path"),
+                frame_rate=self.frame_rate.get(),
+                resolution_label=self.resolution_label.get(),
+                output_prefix=self.output_prefix.get().strip() or "narration",
+            )
+        except Exception as exc:
+            self._log(f"Shotcut export failed: {exc}")
+            return
+
+        self._log(f"Shotcut MLT saved: {mlt_path}")
 
     def _resolution_labels(self) -> list[str]:
         return [
