@@ -33,18 +33,22 @@ def export_shotcut_mlt(
     fps = _parse_frame_rate(frame_rate)
     width, height = _resolve_dimensions(resolution_label)
     end_time = max(float(seg["end"]) for seg in segments)
-    end_frame = max(1, int(round(end_time * fps)))
+    length_frames = max(1, int(round(end_time * fps)))
 
     mlt = ET.Element("mlt", attrib={"LC_NUMERIC": "C", "version": "7.0.0", "title": "Shotcut"})
     _add_profile(mlt, fps, width, height)
 
-    _add_color_producer(mlt, "background", end_frame)
+    _add_color_producer(mlt, "background", length_frames)
 
     video_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "video_track"})
     audio_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "audio_track"})
     subtitle_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "subtitle_track"})
     background_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "background"})
-    ET.SubElement(background_playlist, "entry", attrib={"producer": "background", "in": "0", "out": str(end_frame)})
+    ET.SubElement(
+        background_playlist,
+        "entry",
+        attrib={"producer": "background", "in": "0", "out": str(length_frames - 1)},
+    )
 
     current_frame = 0
     crossfade_frames = max(0, int(round(crossfade_seconds * fps)))
@@ -54,7 +58,7 @@ def export_shotcut_mlt(
         if not image_path:
             continue
         producer_id = f"img_{idx:03d}"
-        _add_image_producer(mlt, producer_id, image_path, end_frame)
+        _add_image_producer(mlt, producer_id, image_path, length_frames)
 
         start = float(segment["start"])
         end = float(segment["end"])
@@ -80,11 +84,11 @@ def export_shotcut_mlt(
 
     if audio_path:
         audio_producer_id = "audio_main"
-        _add_audio_producer(mlt, audio_producer_id, audio_path, end_frame)
+        _add_audio_producer(mlt, audio_producer_id, audio_path, length_frames)
         ET.SubElement(
             audio_playlist,
             "entry",
-            attrib={"producer": audio_producer_id, "in": "0", "out": str(end_frame)},
+            attrib={"producer": audio_producer_id, "in": "0", "out": str(length_frames - 1)},
         )
 
     if srt_path and Path(srt_path).exists():
@@ -107,7 +111,7 @@ def export_shotcut_mlt(
             )
             subtitle_frame += duration
 
-    _add_shotcut_tractor(mlt, end_frame)
+    _add_shotcut_tractor(mlt, length_frames)
 
     tree = ET.ElementTree(mlt)
     tree.write(mlt_path, encoding="utf-8", xml_declaration=True)
@@ -116,7 +120,7 @@ def export_shotcut_mlt(
 
 def _add_profile(root: ET.Element, fps: float, width: int, height: int) -> None:
     fps_num, fps_den = _to_fraction(fps)
-    aspect_num, aspect_den = _to_fraction(width / height)
+    aspect_num, aspect_den = _reduce_ratio(width, height)
     ET.SubElement(
         root,
         "profile",
@@ -142,7 +146,7 @@ def _add_color_producer(root: ET.Element, producer_id: str, length_frames: int) 
         attrib={
             "id": producer_id,
             "in": "0",
-            "out": str(length_frames),
+            "out": str(length_frames - 1),
         },
     )
     ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "color"
@@ -154,10 +158,10 @@ def _add_image_producer(root: ET.Element, producer_id: str, path: str, length_fr
     producer = ET.SubElement(
         root,
         "producer",
-        attrib={"id": producer_id, "in": "0", "out": str(length_frames)},
+        attrib={"id": producer_id, "in": "0", "out": str(length_frames - 1)},
     )
     ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "qimage"
-    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = path
+    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = _normalize_path(path)
     ET.SubElement(producer, "property", attrib={"name": "length"}).text = str(length_frames)
 
 
@@ -165,17 +169,18 @@ def _add_audio_producer(root: ET.Element, producer_id: str, path: str, length_fr
     producer = ET.SubElement(
         root,
         "producer",
-        attrib={"id": producer_id, "in": "0", "out": str(length_frames)},
+        attrib={"id": producer_id, "in": "0", "out": str(length_frames - 1)},
     )
     ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "avformat"
-    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = path
+    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = _normalize_path(path)
+    ET.SubElement(producer, "property", attrib={"name": "length"}).text = str(length_frames)
 
 
 def _add_subtitle_producer(root: ET.Element, producer_id: str, text: str, length_frames: int) -> None:
     producer = ET.SubElement(
         root,
         "producer",
-        attrib={"id": producer_id, "in": "0", "out": str(length_frames)},
+        attrib={"id": producer_id, "in": "0", "out": str(length_frames - 1)},
     )
     ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "qtext"
     ET.SubElement(producer, "property", attrib={"name": "text"}).text = text
@@ -189,7 +194,7 @@ def _add_shotcut_tractor(root: ET.Element, length_frames: int) -> None:
     tractor = ET.SubElement(
         root,
         "tractor",
-        attrib={"id": "shotcut_project", "in": "0", "out": str(length_frames)},
+        attrib={"id": "shotcut_project", "in": "0", "out": str(length_frames - 1)},
     )
     ET.SubElement(tractor, "property", attrib={"name": "shotcut"}).text = "1"
     ET.SubElement(tractor, "property", attrib={"name": "shotcut:projectAudioChannels"}).text = "2"
@@ -229,6 +234,12 @@ def _parse_frame_rate(value: str) -> float:
 def _to_fraction(value: float) -> tuple[int, int]:
     if value == 0:
         return 0, 1
+    if abs(value - (24000 / 1001)) < 1e-6:
+        return 24000, 1001
+    if abs(value - (30000 / 1001)) < 1e-6:
+        return 30000, 1001
+    if abs(value - (60000 / 1001)) < 1e-6:
+        return 60000, 1001
     den = 1000
     num = int(round(value * den))
     return num, den
@@ -236,6 +247,22 @@ def _to_fraction(value: float) -> tuple[int, int]:
 
 def _safe_prefix(value: str) -> str:
     return "".join(ch for ch in value if ch.isalnum() or ch in ("-", "_")).strip()
+
+
+def _normalize_path(path: str) -> str:
+    try:
+        return Path(path).as_posix()
+    except Exception:
+        return path
+
+
+def _reduce_ratio(num: int, den: int) -> tuple[int, int]:
+    if den == 0:
+        return 0, 1
+    from math import gcd
+
+    g = gcd(num, den)
+    return num // g, den // g
 
 
 def _parse_srt(text: str) -> list[dict]:
