@@ -49,7 +49,16 @@ def build_image_segments(
     if not anchors:
         return []
 
-    normalized_words = [_normalize_token(word.text) for word in words]
+    normalized_words: list[str] = []
+    token_word_indices: list[int] = []
+    for idx, word in enumerate(words):
+        normalized = _normalize_token(word.text)
+        if not normalized:
+            continue
+        parts = normalized.split()
+        for part in parts:
+            normalized_words.append(part)
+            token_word_indices.append(idx)
     segments: list[ImageSegment] = []
     missing: list[str] = []
 
@@ -59,10 +68,11 @@ def build_image_segments(
         if not snippet_tokens:
             missing.append(anchor.image_id)
             continue
-        match_index = _find_subsequence(normalized_words, snippet_tokens)
-        if match_index is None:
+        match_token_index = _find_subsequence(normalized_words, snippet_tokens)
+        if match_token_index is None:
             missing.append(anchor.image_id)
             continue
+        match_index = token_word_indices[match_token_index]
         start_time = words[match_index].start
         start_times.append((anchor, match_index, start_time))
 
