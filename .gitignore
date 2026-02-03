@@ -30,5 +30,5 @@ output/
 outputs/
 runs/
 temp/
-*.json
+narration*.json
 data.md
