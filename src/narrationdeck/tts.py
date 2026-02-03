@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .elevenlabs import synthesize_with_timestamps
 from .srt import alignment_to_words, words_to_captions, captions_to_srt
-from .mapping import parse_image_anchors, build_image_segments
+from .mapping import parse_image_anchors, build_image_segments, debug_missing_anchors
 from .srt import WordTiming
 
 
@@ -159,11 +159,16 @@ def build_image_timeline_from_timestamps(
     if not anchors:
         raise ValueError("No image anchors provided.")
 
-    image_segments = build_image_segments(
-        anchors=anchors,
-        words=words,
-        allow_missing=allow_missing_image_anchors,
-    )
+    try:
+        image_segments = build_image_segments(
+            anchors=anchors,
+            words=words,
+            allow_missing=allow_missing_image_anchors,
+        )
+    except ValueError as exc:
+        debug_path = output_path / f"{safe_prefix}_{run_id}_anchor_debug.txt"
+        debug_path.write_text(debug_missing_anchors(anchors, words), encoding="utf-8")
+        raise ValueError(f"{exc}. Debug report written to {debug_path}") from exc
     matched_ids = {segment.image_id for segment in image_segments}
     missing_images = [anchor.image_id for anchor in anchors if anchor.image_id not in matched_ids]
 

@@ -49,16 +49,7 @@ def build_image_segments(
     if not anchors:
         return []
 
-    normalized_words: list[str] = []
-    token_word_indices: list[int] = []
-    for idx, word in enumerate(words):
-        normalized = _normalize_token(word.text)
-        if not normalized:
-            continue
-        parts = normalized.split()
-        for part in parts:
-            normalized_words.append(part)
-            token_word_indices.append(idx)
+    normalized_words, token_word_indices = _build_normalized_tokens(words)
     segments: list[ImageSegment] = []
     missing: list[str] = []
 
@@ -98,6 +89,35 @@ def build_image_segments(
         )
 
     return segments
+
+
+def debug_missing_anchors(anchors: list[ImageAnchor], words: list[WordTiming]) -> str:
+    normalized_words, _ = _build_normalized_tokens(words)
+    lines = ["Anchor Debug Report", "====================", ""]
+    for anchor in anchors:
+        snippet_tokens = _normalize_text(anchor.snippet).split()
+        if not snippet_tokens:
+            lines.append(f"Image {anchor.image_id}: empty snippet after normalization")
+            lines.append("")
+            continue
+
+        exact_idx = _find_subsequence(normalized_words, snippet_tokens)
+        if exact_idx is not None:
+            lines.append(f"Image {anchor.image_id}: exact match at token {exact_idx}")
+            lines.append("")
+            continue
+
+        prefix = snippet_tokens[:4]
+        prefix_idx = _find_subsequence(normalized_words, prefix) if prefix else None
+        lines.append(f"Image {anchor.image_id}: no exact match")
+        lines.append(f"  Normalized snippet: {' '.join(snippet_tokens)}")
+        if prefix_idx is not None:
+            window = normalized_words[prefix_idx:prefix_idx + 12]
+            lines.append(f"  Prefix match tokens: {' '.join(window)}")
+        else:
+            lines.append("  Prefix match: none")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _normalize_text(text: str) -> str:
@@ -181,6 +201,20 @@ def _normalize_number_words(text: str) -> str:
         i += 1
 
     return " ".join(out)
+
+
+def _build_normalized_tokens(words: list[WordTiming]) -> tuple[list[str], list[int]]:
+    normalized_words: list[str] = []
+    token_word_indices: list[int] = []
+    for idx, word in enumerate(words):
+        normalized = _normalize_token(word.text)
+        if not normalized:
+            continue
+        parts = normalized.split()
+        for part in parts:
+            normalized_words.append(part)
+            token_word_indices.append(idx)
+    return normalized_words, token_word_indices
 
 
 def _find_subsequence(words: list[str], snippet: list[str]) -> int | None:
