@@ -42,6 +42,8 @@ class NarrationDeckGUI:
         self.existing_audio = tk.StringVar(value="")
         self.existing_timestamps = tk.StringVar(value="")
         self.existing_srt = tk.StringVar(value="")
+        self.shotcut_crossfade_enabled = tk.BooleanVar(value=False)
+        self.shotcut_crossfade_seconds = tk.DoubleVar(value=0.5)
 
         self.last_generation: dict | None = None
 
@@ -282,6 +284,19 @@ class NarrationDeckGUI:
             command=self._toggle_caption_limits,
         ).grid(row=6, column=3, columnspan=2, sticky="w", padx=8, pady=6)
 
+        tk.Checkbutton(
+            frame,
+            text="Shotcut crossfade (may shift timing)",
+            variable=self.shotcut_crossfade_enabled,
+            bg="#f5f6f8",
+        ).grid(row=7, column=3, columnspan=2, sticky="w", padx=8, pady=6)
+        tk.Label(frame, text="Crossfade (s)", bg="#f5f6f8").grid(
+            row=8, column=3, sticky="w", padx=8, pady=6
+        )
+        tk.Spinbox(
+            frame, from_=0.1, to=2.0, increment=0.1, textvariable=self.shotcut_crossfade_seconds, width=8
+        ).grid(row=8, column=4, sticky="w", padx=8, pady=6)
+
         return frame
 
     def _narration_frame(self) -> tk.LabelFrame:
@@ -513,14 +528,22 @@ class NarrationDeckGUI:
             self._log("Missing image timeline. Generate audio/timestamps first.")
             return
 
+        srt_path = None
+        if self.last_generation and self.last_generation.get("srt_path"):
+            srt_path = self.last_generation.get("srt_path")
+        elif self.existing_srt.get().strip():
+            srt_path = self.existing_srt.get().strip()
+
         try:
             mlt_path = export_shotcut_mlt(
                 images_dir=images_dir,
                 image_timeline_path=self.last_generation["image_timeline_path"],
                 audio_path=self.last_generation.get("audio_path"),
+                srt_path=srt_path,
                 frame_rate=self.frame_rate.get(),
                 resolution_label=self.resolution_label.get(),
                 output_prefix=self.output_prefix.get().strip() or "narration",
+                crossfade_seconds=self.shotcut_crossfade_seconds.get() if self.shotcut_crossfade_enabled.get() else 0.0,
             )
         except Exception as exc:
             self._log(f"Shotcut export failed: {exc}")
