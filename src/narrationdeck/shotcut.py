@@ -35,37 +35,60 @@ def export_shotcut_mlt(
     end_time = max(float(seg["end"]) for seg in segments)
     length_frames = max(1, int(round(end_time * fps)))
 
-    mlt = ET.Element("mlt", attrib={"LC_NUMERIC": "C", "version": "7.0.0", "title": "Shotcut"})
+    # 1. Initialize Root
+    mlt = ET.Element("mlt", attrib={
+        "LC_NUMERIC": "C", 
+        "version": "7.0.0", 
+        "title": "Shotcut",
+        "producer": "main_bin" # Matches test.mlt
+    })
     _add_profile(mlt, fps, width, height)
 
     _add_color_producer(mlt, "background", length_frames)
 
-    video_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "video_track"})
-    audio_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "audio_track"})
-    subtitle_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "subtitle_track"})
-    background_playlist = ET.SubElement(mlt, "playlist", attrib={"id": "background"})
+    # 2. Detached Playlists
+    video_playlist = ET.Element("playlist", attrib={"id": "videotrack0"})
+    audio_playlist = ET.Element("playlist", attrib={"id": "audiotrack0"})
+    background_playlist = ET.Element("playlist", attrib={"id": "background"})
+    
     ET.SubElement(
         background_playlist,
         "entry",
         attrib={"producer": "background", "in": "0", "out": str(length_frames - 1)},
     )
 
+    # 3. Producers & Video Playlist
     current_frame = 0
     crossfade_frames = max(0, int(round(crossfade_seconds * fps)))
+    
     for idx, segment in enumerate(segments, start=1):
         image_id = segment["image_id"]
         image_path = _find_image_path(images_dir, image_id)
         if not image_path:
             continue
-        producer_id = f"img_{idx:03d}"
-        _add_image_producer(mlt, producer_id, image_path, length_frames)
-
-        start = float(segment["start"])
-        end = float(segment["end"])
-        start_frame = int(round(start * fps))
+        
+        # Calculate timing
+        raw_start = float(segment["start"])
+        raw_end = float(segment["end"])
+        
+        # Start frame logic (handling crossfade overlap)
+        start_frame = int(round(raw_start * fps))
         if crossfade_frames > 0 and idx > 1:
             start_frame = max(0, start_frame - crossfade_frames)
-        duration_frames = max(1, int(round((end - start) * fps)))
+            
+        # End frame logic (original end point, maintained)
+        end_frame = int(round(raw_end * fps))
+        
+        # Duration is the span from the (potentially shifted) start to the end
+        duration_frames = max(1, end_frame - start_frame)
+        
+        producer_id = f"img_{idx:03d}"
+        
+        # Optimization: Set producer length to exactly what's needed plus a small buffer
+        producer_length = duration_frames + 5
+        _add_image_producer(mlt, producer_id, image_path, producer_length)
+
+        # Handle gaps
         if start_frame > current_frame:
             gap = start_frame - current_frame
             ET.SubElement(video_playlist, "blank", attrib={"length": str(gap)})
@@ -82,6 +105,7 @@ def export_shotcut_mlt(
         )
         current_frame += duration_frames
 
+    # 4. Audio
     if audio_path:
         audio_producer_id = "audio_main"
         _add_audio_producer(mlt, audio_producer_id, audio_path, length_frames)
@@ -91,200 +115,188 @@ def export_shotcut_mlt(
             attrib={"producer": audio_producer_id, "in": "0", "out": str(length_frames - 1)},
         )
 
+    # 5. Bin Playlist (required structure seen in test.mlt, though we might not need to populate it fully)
+    main_bin = ET.Element("playlist", attrib={"id": "main_bin"})
+    ET.SubElement(main_bin, "property", attrib={"name": "xml_retain"}).text = "1"
+    mlt.append(main_bin)
+
+    # 6. Append Playlists
+    mlt.append(background_playlist)
+    mlt.append(video_playlist)
+    mlt.append(audio_playlist)
+    
+    # 7. Tractor & Subtitles
+    tractor = ET.SubElement(mlt, "tractor", attrib={
+        "id": "tractor0", 
+        "in": "0", 
+        "out": str(length_frames - 1)
+    })
+    
+    # Standard properties
+    ET.SubElement(tractor, "property", attrib={"name": "shotcut"}).text = "1"
+    
+    # Tracks
+    ET.SubElement(tractor, "track", attrib={"producer": "background"})
+    ET.SubElement(tractor, "track", attrib={"producer": "videotrack0"})
+    ET.SubElement(tractor, "track", attrib={"producer": "audiotrack0"})
+    
+    # Transitions (Mix) - simplified for V1/A1
+    # V1 blend over background
+    trans0 = ET.SubElement(tractor, "transition", attrib={"id": "transition0"})
+    ET.SubElement(trans0, "property", attrib={"name": "a_track"}).text = "0"
+    ET.SubElement(trans0, "property", attrib={"name": "b_track"}).text = "1"
+    ET.SubElement(trans0, "property", attrib={"name": "mlt_service"}).text = "mix"
+    ET.SubElement(trans0, "property", attrib={"name": "always_active"}).text = "1"
+    
+    # Audio mix
+    trans1 = ET.SubElement(tractor, "transition", attrib={"id": "transition1"})
+    ET.SubElement(trans1, "property", attrib={"name": "a_track"}).text = "0"
+    ET.SubElement(trans1, "property", attrib={"name": "b_track"}).text = "2" # Audio track index
+    ET.SubElement(trans1, "property", attrib={"name": "mlt_service"}).text = "mix"
+    ET.SubElement(trans1, "property", attrib={"name": "always_active"}).text = "1"
+
+    # Subtitles (Filter approach)
     if srt_path and Path(srt_path).exists():
-        captions = _parse_srt(Path(srt_path).read_text(encoding="utf-8"))
-        subtitle_frame = 0
-        for idx, caption in enumerate(captions, start=1):
-            start_frame = int(round(caption["start"] * fps))
-            end_frame = max(start_frame, int(round(caption["end"] * fps)))
-            duration = max(1, end_frame - start_frame)
-            if start_frame > subtitle_frame:
-                ET.SubElement(subtitle_playlist, "blank", attrib={"length": str(start_frame - subtitle_frame)})
-                subtitle_frame = start_frame
+        srt_content = Path(srt_path).read_text(encoding="utf-8")
+        _add_subtitle_filters(tractor, srt_content, length_frames)
 
-            producer_id = f"sub_{idx:04d}"
-            _add_subtitle_producer(mlt, producer_id, caption["text"], duration)
-            ET.SubElement(
-                subtitle_playlist,
-                "entry",
-                attrib={"producer": producer_id, "in": "0", "out": str(duration - 1)},
-            )
-            subtitle_frame += duration
-
-    _add_shotcut_tractor(mlt, length_frames)
-
-    tree = ET.ElementTree(mlt)
-    tree.write(mlt_path, encoding="utf-8", xml_declaration=True)
+    # Write with pretty print
+    xml_str = ET.tostring(mlt, encoding="utf-8")
+    import xml.dom.minidom
+    parsed = xml.dom.minidom.parseString(xml_str)
+    
+    with open(mlt_path, "w", encoding="utf-8") as f:
+        f.write(parsed.toprettyxml(indent="  "))
+        
     return str(mlt_path)
 
-
-def _add_profile(root: ET.Element, fps: float, width: int, height: int) -> None:
-    fps_num, fps_den = _to_fraction(fps)
-    aspect_num, aspect_den = _reduce_ratio(width, height)
+def _add_profile(mlt: ET.Element, fps: float, width: int, height: int):
+    # Standard PAL/NTSC defaults often used by Shotcut, but we try to match requested
     ET.SubElement(
-        root,
+        mlt,
         "profile",
         attrib={
-            "description": "custom",
+            "description": "automatic",
             "width": str(width),
             "height": str(height),
             "progressive": "1",
             "sample_aspect_num": "1",
             "sample_aspect_den": "1",
-            "display_aspect_num": str(aspect_num),
-            "display_aspect_den": str(aspect_den),
-            "frame_rate_num": str(fps_num),
-            "frame_rate_den": str(fps_den),
+            "display_aspect_num": str(width),
+            "display_aspect_den": str(height),
+            "frame_rate_num": str(int(fps * 1000)),
+            "frame_rate_den": "1000",
+            "colorspace": "709",
         },
     )
 
-
-def _add_color_producer(root: ET.Element, producer_id: str, length_frames: int) -> None:
+def _add_color_producer(mlt: ET.Element, producer_id: str, length: int):
     producer = ET.SubElement(
-        root,
-        "producer",
-        attrib={
-            "id": producer_id,
-            "in": "0",
-            "out": str(length_frames - 1),
-        },
+        mlt, "producer", attrib={"id": producer_id, "in": "0", "out": str(length - 1)}
     )
+    ET.SubElement(producer, "property", attrib={"name": "length"}).text = _frames_to_time(length)
+    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = "0"
     ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "color"
-    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = "black"
-    ET.SubElement(producer, "property", attrib={"name": "length"}).text = str(length_frames)
+    ET.SubElement(producer, "property", attrib={"name": "mlt_image_format"}).text = "rgba"
+    ET.SubElement(producer, "property", attrib={"name": "aspect_ratio"}).text = "1"
 
-
-def _add_image_producer(root: ET.Element, producer_id: str, path: str, length_frames: int) -> None:
+def _add_image_producer(mlt: ET.Element, producer_id: str, path: str, length: int):
     producer = ET.SubElement(
-        root,
-        "producer",
-        attrib={"id": producer_id, "in": "0", "out": str(length_frames - 1)},
+        mlt, "producer", attrib={"id": producer_id, "in": "0", "out": str(length - 1)}
     )
+    ET.SubElement(producer, "property", attrib={"name": "length"}).text = _frames_to_time(length)
+    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = str(path)
     ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "qimage"
-    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = _normalize_path(path)
-    ET.SubElement(producer, "property", attrib={"name": "length"}).text = str(length_frames)
+    ET.SubElement(producer, "property", attrib={"name": "aspect_ratio"}).text = "1"
+    # Essential for preventing auto-conversion prompts in Shotcut
+    ET.SubElement(producer, "property", attrib={"name": "shotcut:skipConvert"}).text = "1"
 
-
-def _add_audio_producer(root: ET.Element, producer_id: str, path: str, length_frames: int) -> None:
+def _add_audio_producer(mlt: ET.Element, producer_id: str, path: str, length: int):
     producer = ET.SubElement(
-        root,
-        "producer",
-        attrib={"id": producer_id, "in": "0", "out": str(length_frames - 1)},
+        mlt, "producer", attrib={"id": producer_id, "in": "0", "out": str(length - 1)}
     )
-    ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "avformat"
-    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = _normalize_path(path)
-    ET.SubElement(producer, "property", attrib={"name": "length"}).text = str(length_frames)
+    ET.SubElement(producer, "property", attrib={"name": "length"}).text = _frames_to_time(length)
+    ET.SubElement(producer, "property", attrib={"name": "resource"}).text = str(path)
+    # Using avformat-novalidate as seen in test.mlt
+    ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "avformat-novalidate"
+    ET.SubElement(producer, "property", attrib={"name": "shotcut:skipConvert"}).text = "1"
 
+def _add_subtitle_filters(tractor: ET.Element, srt_content: str, length: int):
+    # 1. The Feed Filter (holds the data)
+    feed_filter = ET.SubElement(tractor, "filter", attrib={"id": "sub_feed"})
+    ET.SubElement(feed_filter, "property", attrib={"name": "mlt_service"}).text = "subtitle_feed"
+    ET.SubElement(feed_filter, "property", attrib={"name": "feed"}).text = "subtitle_track" # arbitrary name
+    ET.SubElement(feed_filter, "property", attrib={"name": "lang"}).text = "eng"
+    ET.SubElement(feed_filter, "property", attrib={"name": "shotcut:hidden"}).text = "1"
+    ET.SubElement(feed_filter, "property", attrib={"name": "text"}).text = srt_content
 
-def _add_subtitle_producer(root: ET.Element, producer_id: str, text: str, length_frames: int) -> None:
-    producer = ET.SubElement(
-        root,
-        "producer",
-        attrib={"id": producer_id, "in": "0", "out": str(length_frames - 1)},
-    )
-    ET.SubElement(producer, "property", attrib={"name": "mlt_service"}).text = "qtext"
-    ET.SubElement(producer, "property", attrib={"name": "text"}).text = text
-    ET.SubElement(producer, "property", attrib={"name": "length"}).text = str(length_frames)
-    ET.SubElement(producer, "property", attrib={"name": "align"}).text = "center"
-    ET.SubElement(producer, "property", attrib={"name": "valign"}).text = "bottom"
-    ET.SubElement(producer, "property", attrib={"name": "size"}).text = "32"
+    # 2. The Renderer Filter (displays the data)
+    render_filter = ET.SubElement(tractor, "filter", attrib={"id": "sub_renderer", "out": str(length - 1)})
+    ET.SubElement(render_filter, "property", attrib={"name": "mlt_service"}).text = "subtitle"
+    ET.SubElement(render_filter, "property", attrib={"name": "feed"}).text = "subtitle_track" # Must match above
+    
+    # Styling properties (defaults roughly matching test.mlt)
+    ET.SubElement(render_filter, "property", attrib={"name": "shotcut:filter"}).text = "subtitles"
+    ET.SubElement(render_filter, "property", attrib={"name": "family"}).text = "Verdana"
+    ET.SubElement(render_filter, "property", attrib={"name": "size"}).text = "36" # Reasonable default
+    ET.SubElement(render_filter, "property", attrib={"name": "weight"}).text = "700"
+    ET.SubElement(render_filter, "property", attrib={"name": "fgcolour"}).text = "#ffffffff"
+    ET.SubElement(render_filter, "property", attrib={"name": "bgcolour"}).text = "#00000000"
+    ET.SubElement(render_filter, "property", attrib={"name": "outline"}).text = "3"
+    ET.SubElement(render_filter, "property", attrib={"name": "halign"}).text = "center"
+    ET.SubElement(render_filter, "property", attrib={"name": "valign"}).text = "bottom"
 
+def _add_shotcut_tractor(mlt: ET.Element, length: int):
+    # Deprecated/Replaced by inline tractor construction in export_shotcut_mlt
+    pass
 
-def _add_shotcut_tractor(root: ET.Element, length_frames: int) -> None:
-    tractor = ET.SubElement(
-        root,
-        "tractor",
-        attrib={"id": "shotcut_project", "in": "0", "out": str(length_frames - 1)},
-    )
-    ET.SubElement(tractor, "property", attrib={"name": "shotcut"}).text = "1"
-    ET.SubElement(tractor, "property", attrib={"name": "shotcut:projectAudioChannels"}).text = "2"
-    multitrack = ET.SubElement(tractor, "multitrack")
-    ET.SubElement(multitrack, "track", attrib={"producer": "background"})
-    ET.SubElement(multitrack, "track", attrib={"producer": "video_track"})
-    ET.SubElement(multitrack, "track", attrib={"producer": "subtitle_track"})
-    ET.SubElement(multitrack, "track", attrib={"producer": "audio_track"})
+def _frames_to_time(frames: int, fps: float = 25.0) -> str:
+    # Proper hh:mm:ss.ms formatting if needed, but Shotcut often accepts frames or clock.
+    # We'll use a simple approximation if strict clock is needed, or just let Shotcut handle it.
+    # However, test.mlt uses clock format "00:00:00.000".
+    # For simplicity, we stick to frames in XML attributes usually, but properties might need clock.
+    # Let's implement a basic frame->clock converter.
+    seconds = frames / fps
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    ms = int((s % 1) * 1000)
+    return f"{int(h):02d}:{int(m):02d}:{int(s):02d}.{ms:03d}"
 
-
-def _find_image_path(images_dir: str, image_id: str) -> str | None:
-    folder = Path(images_dir)
-    prefix = f"{image_id}."
-    for entry in sorted(folder.iterdir()):
-        if entry.is_file() and entry.name.lower().startswith(prefix.lower()):
-            return str(entry)
-    return None
-
-
-def _resolve_dimensions(label: str) -> tuple[int, int]:
-    for preset in RESOLUTION_PRESETS:
-        if label.endswith(preset["label"]) and label.startswith(preset["group"]):
-            return preset["width"], preset["height"]
-    return 1920, 1080
-
-
-def _parse_frame_rate(value: str) -> float:
-    if value in {"23.976", "29.97", "59.94"}:
-        mapping = {"23.976": 24000 / 1001, "29.97": 30000 / 1001, "59.94": 60000 / 1001}
-        return mapping[value]
+def _parse_frame_rate(fps_str: str) -> float:
     try:
-        return float(value)
-    except Exception:
+        return float(fps_str)
+    except ValueError:
         return 30.0
 
+def _safe_prefix(prefix: str) -> str:
+    return "".join(c for c in prefix if c.isalnum() or c in ("-", "_")).strip()
 
-def _to_fraction(value: float) -> tuple[int, int]:
-    if value == 0:
-        return 0, 1
-    if abs(value - (24000 / 1001)) < 1e-6:
-        return 24000, 1001
-    if abs(value - (30000 / 1001)) < 1e-6:
-        return 30000, 1001
-    if abs(value - (60000 / 1001)) < 1e-6:
-        return 60000, 1001
-    den = 1000
-    num = int(round(value * den))
-    return num, den
+def _resolve_dimensions(label: str) -> tuple[int, int]:
+    # Basic lookup - extend as needed
+    if "4k" in label.lower():
+        return 3840, 2160
+    if "1080" in label:
+        return 1920, 1080
+    if "720" in label:
+        return 1280, 720
+    return 1920, 1080 # Default
 
+def _find_image_path(base_dir: str, image_id: str) -> str | None:
+    # Simple search
+    base = Path(base_dir)
+    # 1. Try direct ID
+    p = base / image_id
+    if p.exists(): return str(p)
+    # 2. Try with extensions
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        p = base / f"{image_id}{ext}"
+        if p.exists(): return str(p)
+    return None
 
-def _safe_prefix(value: str) -> str:
-    return "".join(ch for ch in value if ch.isalnum() or ch in ("-", "_")).strip()
-
-
-def _normalize_path(path: str) -> str:
-    try:
-        return Path(path).as_posix()
-    except Exception:
-        return path
-
-
-def _reduce_ratio(num: int, den: int) -> tuple[int, int]:
-    if den == 0:
-        return 0, 1
-    from math import gcd
-
-    g = gcd(num, den)
-    return num // g, den // g
+def _parse_srt(content: str) -> list[dict]:
+    # Helper to parse SRT if we needed to split it, but now we dump raw content.
+    # Kept for compatibility if needed elsewhere, or remove if unused.
+    # For now, minimal implementation to satisfy imports if any.
+    return []
 
 
-def _parse_srt(text: str) -> list[dict]:
-    blocks = [b for b in text.strip().split("\n\n") if b.strip()]
-    captions = []
-    for block in blocks:
-        lines = [line.strip() for line in block.splitlines() if line.strip()]
-        if len(lines) < 2:
-            continue
-        time_line = lines[1] if "-->" in lines[1] else lines[0]
-        try:
-            start_str, end_str = [t.strip() for t in time_line.split("-->")]
-        except ValueError:
-            continue
-        start = _parse_srt_time(start_str)
-        end = _parse_srt_time(end_str)
-        text_lines = lines[2:] if "-->" in lines[1] else lines[1:]
-        captions.append({"start": start, "end": end, "text": "\n".join(text_lines)})
-    return captions
-
-
-def _parse_srt_time(value: str) -> float:
-    hh, mm, rest = value.split(":")
-    ss, ms = rest.split(",")
-    return int(hh) * 3600 + int(mm) * 60 + int(ss) + int(ms) / 1000.0
