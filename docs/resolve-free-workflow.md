@@ -18,16 +18,35 @@ Common locations:
 - `%PROGRAMDATA%\Blackmagic Design\DaVinci Resolve\Fusion\Scripts\Comp`
 - `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Comp`
 
+## Specifying the Payload File
+
+The script uses three methods to find your payload file (in order):
+
+### Method 1: Environment Variable
+Set `NARRATIONDECK_PAYLOAD` before launching Resolve:
+```powershell
+$env:NARRATIONDECK_PAYLOAD = "C:\path\to\narrationdeck_payload_20260131_120000.json"
+```
+
+### Method 2: Config File (Recommended for Resolve 20.x)
+Create a text file at one of these locations:
+- `%USERPROFILE%\Documents\narrationdeck_payload.txt`
+- `%USERPROFILE%\narrationdeck_payload.txt`
+
+Put the full path to your payload JSON on the first line:
+```
+C:\Users\YourName\projects\narrationdeck_payload_20260131_120000.json
+```
+
+### Method 3: File Dialog
+If neither of the above are set, the script tries to open a file dialog.
+**Note:** This may not work in Resolve 20.x due to Python environment restrictions.
+
 ## Run the Script
 1) Open Resolve.
-2) Go to **Workspace → Scripts** and run `narrationdeck_build.py`.
-3) When prompted, select the payload JSON created by the GUI.
-
-You can also set an environment variable to skip the file dialog:
-
-```
-NARRATIONDECK_PAYLOAD=C:\path\to\narrationdeck_payload_20260131_120000.json
-```
+2) Set up your payload file using Method 1 or 2 above.
+3) Go to **Workspace → Scripts** and run `narrationdeck_build.py`.
+4) Check the console output for debug messages.
 
 The script will:
 - Create or open the target project.

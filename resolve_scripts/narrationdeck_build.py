@@ -4,75 +4,183 @@ import sys
 from pathlib import Path
 
 
-def _try_import_resolve():
+def _load_source(module_name, file_path):
+    """Load a Python source file as a module (Python 3.5+ compatible)."""
+    if sys.version_info[0] >= 3 and sys.version_info[1] >= 5:
+        import importlib.util
+
+        module = None
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec:
+            module = importlib.util.module_from_spec(spec)
+        if module:
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+        return module
+    else:
+        import imp
+        return imp.load_source(module_name, file_path)
+
+
+def _get_resolve():
+    """Get the Resolve application object.
+    
+    Tries multiple methods to connect to Resolve:
+    1. Check for 'fu' or 'fusion' globals (Fusion page scripts)
+    2. Try bmd.scriptapp('Fusion') and get Resolve from there
+    3. Try bmd.scriptapp('Resolve') directly (may fail on Free)
+    """
+    print("[NarrationDeck] Attempting to connect to Resolve...")
+    
+    # Method 1: Check for Fusion globals (available in Comp scripts)
+    # When running from Fusion page scripts, 'fu' or 'fusion' may be injected
+    for global_name in ['fu', 'fusion', 'resolve']:
+        if global_name in globals():
+            print(f"[NarrationDeck] Found '{global_name}' in globals()")
+            obj = globals()[global_name]
+            if global_name == 'resolve':
+                return obj
+            if hasattr(obj, 'GetResolve'):
+                try:
+                    resolve = obj.GetResolve()
+                    if resolve:
+                        print(f"[NarrationDeck] Got Resolve via {global_name}.GetResolve()")
+                        return resolve
+                except Exception as e:
+                    print(f"[NarrationDeck] {global_name}.GetResolve() failed: {e}")
+    
+    # Method 2: Try to import bmd/DaVinciResolveScript
+    bmd = None
     try:
-        import DaVinciResolveScript as dvr
-        return dvr
-    except Exception:
-        pass
+        import DaVinciResolveScript as bmd
+        print("[NarrationDeck] Found DaVinciResolveScript in PYTHONPATH")
+    except ImportError:
+        print("[NarrationDeck] DaVinciResolveScript not in PYTHONPATH, trying default locations...")
+        
+        if sys.platform.startswith("darwin"):
+            expected_path = "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting/Modules/"
+        elif sys.platform.startswith("win") or sys.platform.startswith("cygwin"):
+            expected_path = os.getenv('PROGRAMDATA', '') + "\\Blackmagic Design\\DaVinci Resolve\\Support\\Developer\\Scripting\\Modules\\"
+        elif sys.platform.startswith("linux"):
+            expected_path = "/opt/resolve/Developer/Scripting/Modules/"
+        else:
+            expected_path = ""
 
-    program_data = os.getenv("PROGRAMDATA")
-    if program_data:
-        module_path = Path(program_data) / "Blackmagic Design" / "DaVinci Resolve" / "Support" / "Developer" / "Scripting" / "Modules"
-        if module_path.exists():
-            sys.path.append(str(module_path))
-            try:
-                import DaVinciResolveScript as dvr
-                return dvr
-            except Exception:
-                return None
-    return None
+        print(f"[NarrationDeck] Trying path: {expected_path}")
+        
+        try:
+            _load_source('DaVinciResolveScript', expected_path + "DaVinciResolveScript.py")
+            import DaVinciResolveScript as bmd
+            print("[NarrationDeck] Loaded DaVinciResolveScript from default path")
+        except Exception as ex:
+            print(f"[NarrationDeck] ERROR: Unable to find module: {ex}")
+            bmd = None
+    
+    if bmd:
+        # Method 3: Try to get Fusion first, then Resolve from Fusion
+        print("[NarrationDeck] Trying bmd.scriptapp('Fusion')...")
+        try:
+            fusion_app = bmd.scriptapp("Fusion")
+            if fusion_app:
+                print("[NarrationDeck] Got Fusion app, trying GetResolve()...")
+                if hasattr(fusion_app, 'GetResolve'):
+                    resolve = fusion_app.GetResolve()
+                    if resolve:
+                        print("[NarrationDeck] Got Resolve via Fusion.GetResolve()")
+                        return resolve
+        except Exception as e:
+            print(f"[NarrationDeck] Fusion approach failed: {e}")
+        
+        # Method 4: Try direct Resolve access (usually fails on Free)
+        print("[NarrationDeck] Trying bmd.scriptapp('Resolve')...")
+        try:
+            resolve = bmd.scriptapp("Resolve")
+            if resolve:
+                print("[NarrationDeck] Successfully connected to Resolve!")
+                return resolve
+        except Exception as e:
+            print(f"[NarrationDeck] Direct Resolve access failed: {e}")
 
-
-def _get_resolve_app(dvr):
-    if not dvr:
-        return None
-    try:
-        resolve = dvr.scriptapp("Resolve")
-        if resolve:
-            return resolve
-    except Exception:
-        pass
-
-    # Running inside Resolve/Fusion script context
-    try:
-        fusion = dvr.scriptapp("Fusion")
-        if fusion and hasattr(fusion, "GetResolve"):
-            return fusion.GetResolve()
-    except Exception:
-        pass
-
-    try:
-        import bmd
-        resolve = bmd.scriptapp("Resolve")
-        if resolve:
-            return resolve
-        fusion = bmd.scriptapp("Fusion")
-        if fusion and hasattr(fusion, "GetResolve"):
-            return fusion.GetResolve()
-    except Exception:
-        pass
-
+    print("[NarrationDeck]")
+    print("[NarrationDeck] ========================================")
+    print("[NarrationDeck] RESOLVE FREE SCRIPTING LIMITATION")
+    print("[NarrationDeck] ========================================")
+    print("[NarrationDeck] Resolve 20.x Free restricts scripting API access.")
+    print("[NarrationDeck] ")
+    print("[NarrationDeck] ALTERNATIVE: Use 'Export Shotcut MLT' from NarrationDeck")
+    print("[NarrationDeck] GUI to create an MLT project, then import to Resolve manually.")
+    print("[NarrationDeck] ")
+    print("[NarrationDeck] Or upgrade to DaVinci Resolve Studio for full scripting support.")
     return None
 
 
 def _choose_payload_path():
+    """Choose a payload file using multiple fallback methods.
+    
+    Priority:
+    1. NARRATIONDECK_PAYLOAD environment variable
+    2. narrationdeck_payload.txt file in user's Documents folder
+    3. Tkinter file dialog (may fail in Resolve's environment)
+    """
+    print("[NarrationDeck] Looking for payload file...")
+    
+    # Method 1: Environment variable
     env_path = os.getenv("NARRATIONDECK_PAYLOAD")
-    if env_path and Path(env_path).exists():
-        return env_path
+    if env_path:
+        print(f"[NarrationDeck] Found NARRATIONDECK_PAYLOAD env var: {env_path}")
+        if Path(env_path).exists():
+            return env_path
+        else:
+            print(f"[NarrationDeck] Warning: Path from env var does not exist!")
 
+    # Method 2: Config file in Documents folder
+    # User can put the payload path in a simple text file
+    user_profile = os.getenv("USERPROFILE")
+    if user_profile:
+        config_locations = [
+            Path(user_profile) / "Documents" / "narrationdeck_payload.txt",
+            Path(user_profile) / "narrationdeck_payload.txt",
+        ]
+        for config_file in config_locations:
+            if config_file.exists():
+                print(f"[NarrationDeck] Found config file: {config_file}")
+                try:
+                    payload_path = config_file.read_text(encoding="utf-8").strip()
+                    if payload_path and Path(payload_path).exists():
+                        print(f"[NarrationDeck] Using payload from config: {payload_path}")
+                        return payload_path
+                    else:
+                        print(f"[NarrationDeck] Warning: Path in config file does not exist: {payload_path}")
+                except Exception as e:
+                    print(f"[NarrationDeck] Error reading config file: {e}")
+
+    # Method 3: Tkinter file dialog
+    print("[NarrationDeck] Attempting Tkinter file dialog...")
     try:
         import tkinter as tk
         from tkinter import filedialog
 
         root = tk.Tk()
         root.withdraw()
-        return filedialog.askopenfilename(
+        root.attributes("-topmost", True)  # Bring dialog to front
+        path = filedialog.askopenfilename(
             title="Select NarrationDeck payload JSON",
             filetypes=[("JSON files", "*.json")],
         )
-    except Exception:
-        return ""
+        root.destroy()
+        if path:
+            print(f"[NarrationDeck] Selected via dialog: {path}")
+            return path
+        else:
+            print("[NarrationDeck] No file selected in dialog")
+    except Exception as e:
+        print(f"[NarrationDeck] Tkinter dialog failed: {e}")
+        print("[NarrationDeck] TIP: Create a file at:")
+        if user_profile:
+            print(f"[NarrationDeck]   {user_profile}\\Documents\\narrationdeck_payload.txt")
+        print("[NarrationDeck] containing the full path to your payload JSON file.")
+
+    return ""
 
 
 def _load_payload(path: str):
@@ -168,14 +276,13 @@ def _set_title_duration(title_item, duration_frames: int) -> bool:
 
 
 def main():
-    dvr = _try_import_resolve()
-    if not dvr:
-        print("Could not import DaVinciResolveScript. Check Resolve Developer/Scripting modules.")
-        return
-
+    # Get payload file first
     payload_path = _choose_payload_path()
     if not payload_path:
-        print("No payload selected. Set NARRATIONDECK_PAYLOAD env var or choose a file.")
+        print("[NarrationDeck] No payload selected.")
+        print("[NarrationDeck] Options:")
+        print("[NarrationDeck]   1. Set NARRATIONDECK_PAYLOAD environment variable")
+        print("[NarrationDeck]   2. Create %USERPROFILE%\\Documents\\narrationdeck_payload.txt")
         return
 
     payload = _load_payload(payload_path)
@@ -183,9 +290,9 @@ def main():
     inputs = payload.get("inputs", {})
     artifacts = payload.get("artifacts", {})
 
-    resolve = _get_resolve_app(dvr)
+    # Connect to Resolve
+    resolve = _get_resolve()
     if not resolve:
-        print("Resolve scripting app not available. Run this from Resolve Scripts menu.")
         return
 
     project_manager = resolve.GetProjectManager()

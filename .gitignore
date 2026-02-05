@@ -33,3 +33,6 @@ temp/
 narration*.json
 data.md
 *.mlt
+
+Scripting/
+mlt_files/
