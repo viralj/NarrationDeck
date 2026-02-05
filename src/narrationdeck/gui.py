@@ -44,6 +44,7 @@ class NarrationDeckGUI:
         self.existing_srt = tk.StringVar(value="")
         self.shotcut_crossfade_enabled = tk.BooleanVar(value=False)
         self.shotcut_crossfade_seconds = tk.DoubleVar(value=0.5)
+        self.shotcut_captions_enabled = tk.BooleanVar(value=False)
 
         self.last_generation: dict | None = None
 
@@ -297,6 +298,13 @@ class NarrationDeckGUI:
             frame, from_=0.1, to=2.0, increment=0.1, textvariable=self.shotcut_crossfade_seconds, width=8
         ).grid(row=8, column=4, sticky="w", padx=8, pady=6)
 
+        tk.Checkbutton(
+            frame,
+            text="Shotcut captions (from timeline)",
+            variable=self.shotcut_captions_enabled,
+            bg="#f5f6f8",
+        ).grid(row=9, column=3, columnspan=2, sticky="w", padx=8, pady=6)
+
         return frame
 
     def _narration_frame(self) -> tk.LabelFrame:
@@ -544,6 +552,7 @@ class NarrationDeckGUI:
                 resolution_label=self.resolution_label.get(),
                 output_prefix=self.output_prefix.get().strip() or "narration",
                 crossfade_seconds=self.shotcut_crossfade_seconds.get() if self.shotcut_crossfade_enabled.get() else 0.0,
+                captions_enabled=self.shotcut_captions_enabled.get(),
             )
         except Exception as exc:
             self._log(f"Shotcut export failed: {exc}")

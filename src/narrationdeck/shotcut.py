@@ -20,6 +20,8 @@ def export_shotcut_mlt(
     resolution_label: str,
     output_prefix: str,
     crossfade_seconds: float = 0.0,
+    captions_enabled: bool = False,
+    caption_fade_seconds: float = 0.5,
 ) -> str:
     """Export a Shotcut-compatible MLT project file.
     
@@ -226,6 +228,126 @@ def export_shotcut_mlt(
             "out": _frames_to_time(length_frames - 1, fps),
         })
 
+    # Caption track (V2) with fade transitions
+    caption_playlist_id = None
+    caption_producers = []  # List of (producer_id, start_time, duration)
+    
+    if captions_enabled:
+        caption_playlist_id = "playlist2"
+        caption_fade = caption_fade_seconds
+        
+        for idx, segment in enumerate(segments, start=1):
+            caption_text = segment.get("snippet", "").strip()
+            if not caption_text:
+                continue
+                
+            start_time = float(segment["start"])
+            end_time = float(segment["end"])
+            duration = end_time - start_time
+            
+            if duration <= 0:
+                continue
+            
+            caption_producer_id = f"caption{idx}"
+            caption_duration_time = _seconds_to_time(duration)
+            
+            # Create transparent color producer with text filter
+            caption_producer = ET.SubElement(mlt, "producer", attrib={
+                "id": caption_producer_id,
+                "in": "00:00:00.000",
+                "out": "03:59:59.983",  # Max length like Shotcut does
+            })
+            ET.SubElement(caption_producer, "property", attrib={"name": "length"}).text = "04:00:00.000"
+            ET.SubElement(caption_producer, "property", attrib={"name": "eof"}).text = "pause"
+            ET.SubElement(caption_producer, "property", attrib={"name": "resource"}).text = "#00000000"
+            ET.SubElement(caption_producer, "property", attrib={"name": "aspect_ratio"}).text = "1"
+            ET.SubElement(caption_producer, "property", attrib={"name": "mlt_service"}).text = "color"
+            ET.SubElement(caption_producer, "property", attrib={"name": "mlt_image_format"}).text = "rgba"
+            ET.SubElement(caption_producer, "property", attrib={"name": "shotcut:caption"}).text = "transparent"
+            
+            # Add dynamictext filter for the caption text
+            text_filter = ET.SubElement(caption_producer, "filter", attrib={
+                "id": f"filter{filter_id_counter}",
+                "out": caption_duration_time,
+            })
+            ET.SubElement(text_filter, "property", attrib={"name": "argument"}).text = caption_text
+            # Position text at bottom of screen (y = height - margin)
+            text_y = int(height * 0.87)  # 87% down the screen
+            text_height = int(height * 0.13)  # 13% of screen height for text area
+            ET.SubElement(text_filter, "property", attrib={"name": "geometry"}).text = f"0 {text_y} {width} {text_height} 1"
+            ET.SubElement(text_filter, "property", attrib={"name": "family"}).text = "Microsoft Sans Serif"
+            ET.SubElement(text_filter, "property", attrib={"name": "size"}).text = "80"
+            ET.SubElement(text_filter, "property", attrib={"name": "weight"}).text = "400"
+            ET.SubElement(text_filter, "property", attrib={"name": "style"}).text = "normal"
+            ET.SubElement(text_filter, "property", attrib={"name": "fgcolour"}).text = "#ffffffff"
+            ET.SubElement(text_filter, "property", attrib={"name": "bgcolour"}).text = "#00000000"
+            ET.SubElement(text_filter, "property", attrib={"name": "olcolour"}).text = "#aa000000"
+            ET.SubElement(text_filter, "property", attrib={"name": "pad"}).text = "0"
+            ET.SubElement(text_filter, "property", attrib={"name": "halign"}).text = "center"
+            ET.SubElement(text_filter, "property", attrib={"name": "valign"}).text = "top"
+            ET.SubElement(text_filter, "property", attrib={"name": "outline"}).text = "3"
+            ET.SubElement(text_filter, "property", attrib={"name": "opacity"}).text = "1"
+            ET.SubElement(text_filter, "property", attrib={"name": "mlt_service"}).text = "dynamictext"
+            ET.SubElement(text_filter, "property", attrib={"name": "shotcut:filter"}).text = "dynamicText"
+            ET.SubElement(text_filter, "property", attrib={"name": "shotcut:usePointSize"}).text = "1"
+            ET.SubElement(text_filter, "property", attrib={"name": "shotcut:pointSize"}).text = "60"
+            filter_id_counter += 1
+            
+            # Add fade in brightness filter
+            if caption_fade > 0:
+                fade_in_end = min(caption_fade, duration * 0.4)
+                fade_in = ET.SubElement(caption_producer, "filter", attrib={
+                    "id": f"filter{filter_id_counter}",
+                    "out": caption_duration_time,
+                })
+                ET.SubElement(fade_in, "property", attrib={"name": "start"}).text = "1"
+                ET.SubElement(fade_in, "property", attrib={"name": "level"}).text = f"00:00:00.000=0;{_seconds_to_time(fade_in_end)}=1"
+                ET.SubElement(fade_in, "property", attrib={"name": "mlt_service"}).text = "brightness"
+                ET.SubElement(fade_in, "property", attrib={"name": "shotcut:filter"}).text = "fadeInBrightness"
+                ET.SubElement(fade_in, "property", attrib={"name": "alpha"}).text = "1"
+                ET.SubElement(fade_in, "property", attrib={"name": "shotcut:animIn"}).text = _seconds_to_time(fade_in_end)
+                filter_id_counter += 1
+                
+                # Add fade out brightness filter
+                fade_out_start = max(0, duration - caption_fade)
+                fade_out = ET.SubElement(caption_producer, "filter", attrib={
+                    "id": f"filter{filter_id_counter}",
+                    "out": caption_duration_time,
+                })
+                ET.SubElement(fade_out, "property", attrib={"name": "start"}).text = "1"
+                ET.SubElement(fade_out, "property", attrib={"name": "level"}).text = f"{_seconds_to_time(fade_out_start)}=1;{caption_duration_time}=0"
+                ET.SubElement(fade_out, "property", attrib={"name": "mlt_service"}).text = "brightness"
+                ET.SubElement(fade_out, "property", attrib={"name": "shotcut:filter"}).text = "fadeOutBrightness"
+                ET.SubElement(fade_out, "property", attrib={"name": "alpha"}).text = "1"
+                ET.SubElement(fade_out, "property", attrib={"name": "shotcut:animOut"}).text = _seconds_to_time(caption_fade)
+                filter_id_counter += 1
+            
+            caption_producers.append((caption_producer_id, start_time, duration))
+        
+        # Create V2 playlist for captions
+        caption_playlist = ET.SubElement(mlt, "playlist", attrib={"id": caption_playlist_id})
+        ET.SubElement(caption_playlist, "property", attrib={"name": "shotcut:video"}).text = "1"
+        ET.SubElement(caption_playlist, "property", attrib={"name": "shotcut:name"}).text = "V2"
+        
+        # Add caption entries with proper timing (gaps between captions)
+        caption_current_time = 0.0
+        for producer_id, start_time, duration in caption_producers:
+            # Insert blank if there's a gap
+            if start_time > caption_current_time:
+                gap = start_time - caption_current_time
+                ET.SubElement(caption_playlist, "blank", attrib={
+                    "length": _seconds_to_time(gap),
+                })
+                caption_current_time = start_time
+            
+            # Add caption entry
+            ET.SubElement(caption_playlist, "entry", attrib={
+                "producer": producer_id,
+                "in": "00:00:00.000",
+                "out": _seconds_to_time(duration - 0.001),  # Slight offset to avoid overlap
+            })
+            caption_current_time = start_time + duration
+
     # 3. Main bin playlist (required by Shotcut before last tractor)
     main_bin = ET.SubElement(mlt, "playlist", attrib={"id": "main_bin"})
     ET.SubElement(main_bin, "property", attrib={"name": "xml_retain"}).text = "1"
@@ -245,17 +367,35 @@ def export_shotcut_mlt(
     ET.SubElement(multitrack, "track", attrib={"producer": "playlist0"})
     ET.SubElement(multitrack, "track", attrib={"producer": "playlist1", "hide": "video"})
     
+    # Add V2 caption track if captions are enabled
+    if caption_playlist_id:
+        ET.SubElement(multitrack, "track", attrib={"producer": caption_playlist_id})
+    
     # Transitions for compositing
-    trans_video = ET.SubElement(tractor, "transition", attrib={"id": "transition0"})
+    trans_idx = 0
+    
+    # V1 over background
+    trans_video = ET.SubElement(tractor, "transition", attrib={"id": f"transition{trans_idx}"})
     ET.SubElement(trans_video, "property", attrib={"name": "a_track"}).text = "0"
     ET.SubElement(trans_video, "property", attrib={"name": "b_track"}).text = "1"
     ET.SubElement(trans_video, "property", attrib={"name": "mlt_service"}).text = "frei0r.cairoblend"
     ET.SubElement(trans_video, "property", attrib={"name": "always_active"}).text = "1"
+    trans_idx += 1
+    
+    # V2 caption track over V1 (if captions enabled)
+    if caption_playlist_id:
+        trans_caption = ET.SubElement(tractor, "transition", attrib={"id": f"transition{trans_idx}"})
+        ET.SubElement(trans_caption, "property", attrib={"name": "a_track"}).text = "1"
+        ET.SubElement(trans_caption, "property", attrib={"name": "b_track"}).text = "3"  # Caption is track 3 (background=0, V1=1, A1=2, V2=3)
+        ET.SubElement(trans_caption, "property", attrib={"name": "mlt_service"}).text = "frei0r.cairoblend"
+        ET.SubElement(trans_caption, "property", attrib={"name": "always_active"}).text = "1"
+        trans_idx += 1
     
     # Audio mix transition
-    trans_audio = ET.SubElement(tractor, "transition", attrib={"id": "transition1"})
+    audio_track = 3 if caption_playlist_id else 2  # Audio is track 2 or 3 depending on caption
+    trans_audio = ET.SubElement(tractor, "transition", attrib={"id": f"transition{trans_idx}"})
     ET.SubElement(trans_audio, "property", attrib={"name": "a_track"}).text = "0"
-    ET.SubElement(trans_audio, "property", attrib={"name": "b_track"}).text = "2"
+    ET.SubElement(trans_audio, "property", attrib={"name": "b_track"}).text = "2"  # Audio is always playlist1 which is track 2
     ET.SubElement(trans_audio, "property", attrib={"name": "mlt_service"}).text = "mix"
     ET.SubElement(trans_audio, "property", attrib={"name": "sum"}).text = "1"
 
