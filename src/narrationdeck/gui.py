@@ -548,6 +548,7 @@ class NarrationDeckGUI:
                 image_timeline_path=self.last_generation["image_timeline_path"],
                 audio_path=self.last_generation.get("audio_path"),
                 srt_path=srt_path,
+                timestamps_path=self.last_generation.get("timestamps_path"),
                 frame_rate=self.frame_rate.get(),
                 resolution_label=self.resolution_label.get(),
                 output_prefix=self.output_prefix.get().strip() or "narration",
